@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+
+{% block title %}BTI Dashboard{% endblock %}
+
+{% block page_content %}
+
+<div class="page-header">
+  <h1>Dashboard!</h1>
+
+  <ul class="nav nav-tabs nav-justified">
+    <li class="active"><a data-toggle="tab" href="#form">Form (remove)</a></li>
+    <li><a data-toggle="tab" href="#summary">Summary</a></li>
+    <li><a data-toggle="tab" href="#assoc">Associated Words</a></li>
+    <li><a data-toggle="tab" href="#related">Related Policies</a></li>
+    <li><a data-toggle="tab" href="#clusters">Clusters</a></li>
+    <li><a data-toggle="tab" href="#text">Text</a></li>
+    <li><a data-toggle="tab" href="#sentiment">Sentiment</a></li>
+  </ul>
+</div>
+
+<div class="container">
+
+</div>
+
+<div class="tab-content">
+  <div id="form" class="tab-pane fade in active">
+  <!-- <form method="POST"> -->
+  <!--   {{ form.hidden_tag() }} -->
+  <!--   {{ form.name.label }} {{ form.name() }} -->
+  <!--   {{ form.submit() }} -->
+  <!-- </form> -->
+
+  {% import "bootstrap/wtf.html" as wtf %}
+  {{ wtf.quick_form(form) }}
+
+  <h2>Hello, {% if name %}{{ name }}{% else %}stranger{% endif %}!<h2>
+  </div>
+
+  <div id="summary" class="tab-pane fade">
+    <h3>Summary</h3>
+    <p>Content!</p>
+  </div>
+
+  <div id="assoc" class="tab-pane fade">
+    <h3>Associated Words</h3>
+    <p>Content!</p>
+  </div>
+
+  <div id="related" class="tab-pane fade">
+    <h3>Related Policies</h3>
+    <p>Content!</p>
+  </div>
+
+  <div id="clusters" class="tab-pane fade">
+    <h3>Clusters</h3>
+    <p>Content!</p>
+  </div>
+  
+  <div id="text" class="tab-pane fade">
+    <h3>Text</h3>
+    <p>Content!</p>
+  </div>
+
+  <div id="sentiment" class="tab-pane fade">
+    <h3>Sentment</h3>
+    <p>Content!</p>
+  </div>
+
+</div>
+
+{% endblock %}
+
+
+

@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+
+{% block title %}Upload a Dataset{% endblock %}
+
+{% block page_content %}
+
+<div class="container">
+  <h2>New Dataset</h2>
+
+  {% import "bootstrap/wtf.html" as wtf %}
+  {{ wtf.quick_form(form) }}
+
+</div>
+
+{% endblock %}
+
+
+

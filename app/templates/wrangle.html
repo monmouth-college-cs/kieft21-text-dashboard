@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+
+{% block title %}Wrangle a Dataset{% endblock %}
+
+{% block page_content %}
+
+<div class="container">
+
+  <h2>Wrangle Dataset: "{{ dataset }}"</h2>
+  
+  <div class="row">
+    <div class="col-xs-6">
+      <h3>Readable Files</h3>
+      <ul>
+	{% for f in files %}
+	<li>{{ f }}</li>
+	{% endfor %}
+      </ul>
+    </div>
+    <div class="col-xs-6">
+      <h3>Statistics</h3>
+      <ul>
+	<li>Total size: {{ tsize }}</li>
+	<li>Size of readable files: {{ vsize }}</li>
+      </ul>
+    </div>
+  </div>
+
+  {% import "bootstrap/wtf.html" as wtf %}
+  {{ wtf.quick_form(form) }}
+
+</div>
+
+{% endblock %}
+
+
+
