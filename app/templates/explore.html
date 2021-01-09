@@ -1,74 +1,133 @@
 {% extends "base.html" %}
+{% from "bootstrap/form.html" import render_form, render_field, render_form_row, render_hidden_errors %}
+{% if not active_tab %}
+{% set active_tab = 'settings' %}
+{% endif %}
 
-{% block title %}BTI Dashboard{% endblock %}
+{% block title %}Dashboard - {{ dataset }}{% endblock %}
 
 {% block page_content %}
 
-<div class="page-header">
-  <h1>Dashboard!</h1>
-
-  <ul class="nav nav-tabs nav-justified">
-    <li class="active"><a data-toggle="tab" href="#form">Form (remove)</a></li>
-    <li><a data-toggle="tab" href="#summary">Summary</a></li>
-    <li><a data-toggle="tab" href="#assoc">Associated Words</a></li>
-    <li><a data-toggle="tab" href="#related">Related Policies</a></li>
-    <li><a data-toggle="tab" href="#clusters">Clusters</a></li>
-    <li><a data-toggle="tab" href="#text">Text</a></li>
-    <li><a data-toggle="tab" href="#sentiment">Sentiment</a></li>
-  </ul>
+<div class="jumbotron">
+  <h1 class="display-4 text-center">{{ self.title() }}</h1>
+  <div class="container">
+      <p class="lead">Choose the appropriate values in the "Settings" tab, then
+      click "Analyze" to view the reults, shown in the other tabs. If
+      you like the results, input a unique name and click the "Save
+      Results" button.</p>
+    <div class="row justify-content-center">
+	<form method="post" class="form-inline">
+	  {{ save_form.hidden_tag() }}
+	  {{ render_hidden_errors(save_form) }}
+	  {{ render_field(save_form.tag, form_type='inline', placeholder=save_form.tag.label.text, class_='form-control-sm') }}
+	  {{ render_field(save_form.submit_save, form_type='inline') }}
+	</form>
+    </div>
+  </div>
 </div>
 
 <div class="container">
 
-</div>
+  <ul class="nav nav-tabs nav-justified" id="tabpane" role="tablist">
+    <li class="nav-item">
+      <a class="nav-link {% if active_tab == 'settings' %}active{% endif %}"
+	 data-toggle="tab" id="settings-tab"
+	 role="tab" aria-controls="settings"
+	 aria-selected="{% if active_tab == 'settings' %}true{% else %}false{% endif %}"
+	 href="#settings">Settings</a>
+    </li>
+    <li class="nav-item">
+      <a class="nav-link {% if active_tab == 'summary' %}active{% endif %}"
+	 data-toggle="tab" id="summary-tab"
+	 role="tab" aria-controls="summary"
+	 aria-selected="{% if active_tab == 'summary' %}true{% else %}false{% endif %}"
+	 href="#summary">Summary</a>
+    </li>
+    <li class="nav-item">
+      <a class="nav-link {% if active_tab == 'analysis' %}active{% endif %}"      
+	 data-toggle="tab" id="analysis-tab"
+	 role="tab" aria-controls="analysis"
+	 aria-selected="{% if active_tab == 'analysis' %}true{% else %}false{% endif %}"
+	 href="#analysis">Analysis Terms</a>
+    </li>
+    <li class="nav-item">
+      <a class="nav-link {% if active_tab == 'clusters' %}active{% endif %}"            
+	 data-toggle="tab" id="clusters-tab"
+	 role="tab" aria-controls="clusters"
+	 aria-selected="{% if active_tab == 'clusters' %}true{% else %}false{% endif %}"
+	 href="#clusters">Clusters</a>
+    </li>
+    <li class="nav-item">
+      <a class="nav-link {% if active_tab == 'text' %}active{% endif %}"      
+	 data-toggle="tab" id="text-tab"
+	 role="tab" aria-controls="text"
+	 aria-selected="{% if active_tab == 'text' %}true{% else %}false{% endif %}"
+	 href="#text">Text</a>
+    </li>
+    <li class="nav-item">
+      <a class="nav-link {% if active_tab == 'sentiment' %}active{% endif %}"            
+	 data-toggle="tab" id="sentiment-tab"
+	 role="tab" aria-controls="sentiment"
+	 aria-selected="{% if active_tab == 'sentiment' %}true{% else %}false{% endif %}"
+	 href="#sentiment">Sentiment</a>
+    </li>
+  </ul>
 
-<div class="tab-content">
-  <div id="form" class="tab-pane fade in active">
-  <!-- <form method="POST"> -->
-  <!--   {{ form.hidden_tag() }} -->
-  <!--   {{ form.name.label }} {{ form.name() }} -->
-  <!--   {{ form.submit() }} -->
-  <!-- </form> -->
+  <div class="tab-content pd-5" id="analysisContent">
+    <div id="settings" role="tabpanel" aria-labelledby="settings-tab"
+	 class="tab-pane fade show container {% if active_tab == 'settings' %}active show{% endif %}">
+	 
 
-  {% import "bootstrap/wtf.html" as wtf %}
-  {{ wtf.quick_form(form) }}
+      {{ render_form(analysis_form) }}
+      
+    </div>
 
-  <h2>Hello, {% if name %}{{ name }}{% else %}stranger{% endif %}!<h2>
-  </div>
+    <div id="summary" role="tabpanel" aria-labelledby="summary-tab"
+	 class="tab-pane fade container {% if active_tab == 'summary' %}active show{% endif %}">
+	 
+      <h3>Summary</h3>
 
-  <div id="summary" class="tab-pane fade">
-    <h3>Summary</h3>
-    <p>Content!</p>
-  </div>
+      <p>(Associated terms also goes here....)</p>
 
-  <div id="assoc" class="tab-pane fade">
-    <h3>Associated Words</h3>
-    <p>Content!</p>
-  </div>
+      {{ results['articles_summary']|safe }}
 
-  <div id="related" class="tab-pane fade">
-    <h3>Related Policies</h3>
-    <p>Content!</p>
-  </div>
+      {{ results['chunks_summary']|safe }}
 
-  <div id="clusters" class="tab-pane fade">
-    <h3>Clusters</h3>
-    <p>Content!</p>
-  </div>
+      <img src="data:image/png;base64,{{ results['wordcloud_all_img']|safe }}" class="img-fluid">
+      
+    </div>
+
+    <div id="analysis" role="tabpanel" aria-labelledby="analysis-tab"
+	 class="tab-pane fade container {% if active_tab == 'analysis' %}active show{% endif %}">
+	 
+      <h3>Analysis</h3>
+      <p>Content!</p>
+    </div>
+
+    <div id="clusters" role="tabpanel" aria-labelledby="clusters-tab"
+	 class="tab-pane fade container {% if active_tab == 'clusters' %}active show{% endif %}">
+	 
+      <h3>Clusters</h3>
+      <p>Content!</p>
+    </div>
+    
+    <div id="text" role="tabpanel" aria-labelledby="text-tab"
+	 class="tab-pane fade container {% if active_tab == 'text' %}active show{% endif %}">
+      <h3>Text</h3>
+
+      {{ results['chunks_table']|safe }}
+    </div>
+
+    <div id="sentiment" role="tabpanel" aria-labelledby="sentiment-tab"
+	 class="tab-pane fade container {% if active_tab == 'sentiment' %}active show{% endif %}">
+      <h3>Sentment</h3>
+      <p>Content!</p>
+    </div>
+
+  </div> <!-- container -->
   
-  <div id="text" class="tab-pane fade">
-    <h3>Text</h3>
-    <p>Content!</p>
-  </div>
+  {% endblock %}
 
-  <div id="sentiment" class="tab-pane fade">
-    <h3>Sentment</h3>
-    <p>Content!</p>
-  </div>
-
-</div>
-
-{% endblock %}
 
 
 

@@ -7,8 +7,8 @@
 <div class="container">
   <h2>New Dataset</h2>
 
-  {% import "bootstrap/wtf.html" as wtf %}
-  {{ wtf.quick_form(form) }}
+  {% from "bootstrap/form.html" import render_form, render_field %}
+  {{ render_form(form) }}
 
 </div>
 

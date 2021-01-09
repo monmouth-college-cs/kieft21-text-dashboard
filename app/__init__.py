@@ -2,6 +2,7 @@ import os, logging, sys
 
 from flask import Flask, render_template
 from flask_bootstrap import Bootstrap
+from flask_fontawesome import FontAwesome
 
 def create_app(test_config=None):
     app = Flask(__name__, instance_relative_config=True)
@@ -16,17 +17,19 @@ def create_app(test_config=None):
     else: # load the test config if passed in
         app.config.from_mapping(test_config)
 
-    try: # ensure the instance folder exists
+    try: # ensure the necessary folders exist
         datasets = os.path.join(app.instance_path, 'datasets')
         os.makedirs(datasets, exist_ok=True)
         os.makedirs(os.path.join(datasets, 'zips'), exist_ok=True)
         os.makedirs(os.path.join(datasets, 'raw'), exist_ok=True)
-        os.makedirs(os.path.join(datasets, 'wrangled'), exist_ok=True)
+
+        os.makedirs(os.path.join(app.instance_path, 'outputs'), exist_ok=True)
     except OSError as e:
         print(e)
         pass
 
     bootstrap = Bootstrap(app)
+    fa = FontAwesome(app)
 
     from .main import main as main_blueprint
     app.register_blueprint(main_blueprint)

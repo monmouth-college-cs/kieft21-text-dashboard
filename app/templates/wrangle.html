@@ -1,15 +1,25 @@
 {% extends "base.html" %}
 
-{% block title %}Wrangle a Dataset{% endblock %}
+{% block title %}Wrangle Dataset: "{{ dataset }}"{% endblock %}
 
 {% block page_content %}
 
 <div class="container">
 
-  <h2>Wrangle Dataset: "{{ dataset }}"</h2>
-  
+  {% from "bootstrap/form.html" import render_form, render_field, render_form_row %}
+  <script>
+    function toggleSplitter() {
+      var checked = document.getElementById('oneper').checked
+      document.getElementById('splitter').disabled = checked
+      document.getElementById('split_regex').disabled = checked
+    }
+  </script>
+  {{ render_form(form) }}
+
+  <hr>
+
   <div class="row">
-    <div class="col-xs-6">
+    <div class="col">
       <h3>Readable Files</h3>
       <ul>
 	{% for f in files %}
@@ -17,7 +27,7 @@
 	{% endfor %}
       </ul>
     </div>
-    <div class="col-xs-6">
+    <div class="col">
       <h3>Statistics</h3>
       <ul>
 	<li>Total size: {{ tsize }}</li>
@@ -25,9 +35,6 @@
       </ul>
     </div>
   </div>
-
-  {% import "bootstrap/wtf.html" as wtf %}
-  {{ wtf.quick_form(form) }}
 
 </div>
 
