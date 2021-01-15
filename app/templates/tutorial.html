@@ -4,8 +4,237 @@
 
 {% block page_content %}
 
+<div class="jumbotron py-3">
+  <h2 class="display-5 text-center">Exploring Text Data with this Dashboard</h2>
+  <hr>
+  <ol>
+    <li><a href="#prepare">Prepare your Dataset</a></li>
+    <li><a href="#upload">Upload your Dataset</a></li>
+    <li><a href="#wrangle">"Wrangle" your Dataset</a></li>
+    <li><a href="#explore">Explore your Dataset</a></li>
+  </ol>
+</div>
+
+
 <div class="container">
-  <h2>Hello, world!</h2>
+  <h3 id="prepare">1. Prepare your Dataset</h3>
+  <p>First, you will need to prepare your data. To upload a dataset,
+  you will need a zip file of your documents. The dashboard assumes
+  the zip file will contain a hierarchy of folders. For example, you
+  might have collected news articles from three regions: Mexico, US,
+  and the "Northern Triangle". So at the "top" level you would have
+  three folders: Mexico, US, and NT (for Northern Triangle). But let's
+  say you also grouped the articles by the time period they were
+  published. So within each of the region folders, you also have
+  folders 'phase 1', 'phase 2', and so on, as shown in the figure
+  below.
+  </p>
+
+  <figure class="figure d-block text-center"> 
+    <img src="{{ url_for('static', filename='images/example-hierarchy.png') }}"
+	 class="figure-img img-fluid"
+	 alt="Example folder hierarchy. Top level: Mexico, NT, US. Bottom level: phases 1-4.">
+    <figcaption class="figure-caption">An example folder hierarchy</figcaption>
+  </figure>
+
+  <p>Within each of these time period folders you would put your files
+    containing the news articles.</p>
+
+  <div class="alert alert-info" role="alert">
+    <h4 class="alert-heading">Supported File Types</h4>
+    <p>Currently this dashboard supports <strong>plain text</strong> files and <strong>Excel
+	(.xlsx)</strong> files.</p>
+
+    <p>The simplest case is plain text files that contain a single
+    article each. However, articles retrieved from a database or via a
+    script may produce files that contain many articles. Such files
+    are supported IF the articles are separated by a consistent
+    pattern (see "Wrangling" below). All files should use the same
+    pattern to separate articles (or all files should contain a single
+    article).</p>
+
+
+    <p>Excel files should contain worksheets with a column in the 'A'
+      row that starts with "Text". Each cell below that will be read
+      as a separate article.Note: Older Excel files (.xls) are not
+      supported.</p>
+  </div>
+
+  <p>Finally, you need to put this hierarchy into a zip file. At the
+  top level (in the example, this would be the folder containing the
+  Mexico, US, and NT folders), select your folders. In Windows, you
+  can then right-click and select "Send to", then "Compressed (zipped)
+  folder" as shown below.</p>
+
+  <figure class="figure d-block text-center"> 
+    <img src="{{ url_for('static', filename='images/send-to-zip.png') }}"
+	 class="figure-img img-fluid"
+	 alt="Zipping up the contents of a folder hierarchy.">
+    <figcaption class="figure-caption">How to zip a set of folders in Windows 10.</figcaption>
+  </figure>
+
+
+  <h3 id="upload">2. Upload your Dataset</h3>
+
+  <p>In the <a href="{{ url_for('main.upload') }}"><em>Upload</em></a> page of
+  the dashboard, enter a name for your dataset, select your zip file,
+  and click "Upload".</p>
+
+  <h3 id="wrangle">3. "Wrangle" your Dataset</h3>
+
+  <p>Now we need to do some initial processing on the dataset. After
+  uploading, you should automatically be taken to the <em>Wrangle</em> page of
+  the dashboard (if not, you can get there using the top navigation
+  bar).</p>
+
+  <p>The most important item on this page is telling the dashboard
+  whether or not the plain text files contain a single article or
+  multiple, and if multiple, which pattern can be used to split up the
+    articles. Ideally a simple pattern can be used, such as:
+
+    <blockquote>
+      <pre>--- split here! ---</pre>
+    </blockquote>
+
+    <div class="alert alert-info" role="alert">
+      <h4 class="alert-heading">More Complicated Patterns</h4>
+      <p>If you retrieved your articles from a database such as
+      Factiva, you may need to use a more complicated pattern to split
+	the articles. For example, articles may be separated by something like
+
+	<blockquote>
+	  <pre>Document j000000020010831dx8v0002g</pre>
+	</blockquote>
+
+	except that the numbers and letters after 'Document' may
+	differ in each use. To match such a pattern you would need to
+	use
+	a <a href="https://en.wikipedia.org/wiki/Regular_expression">regular
+	expression</a> and click the "Use Regular Expression?"
+	checkbox. This example can be matched with
+
+	<blockquote>
+	  <pre>^Document \w+$</pre>
+	</blockquote>
+
+	with the following meaning:
+
+	<div class="alert alert-dark"><dl>
+	  <dt>^</dt>
+	  <dd>This is a special symbol in regular expressions meaning
+	  match the start of a line. In other words, the rest of the
+	  pattern ONLY applies if it appears at the beginning of a
+	  line.</dd>
+	  <dt>Document&blank;</dt>
+	  <dd>This just literally means match "Document ". (Note the space after the word!)</dd>
+	  <dt>\w</dt>
+	  <dd>This special sequence means match any word character: a
+	    letter, number, or underscore.</dd>
+	  <dt>+</dt>
+	  <dd>This is a special symbol in regular expressions meaning
+	  match the previous item (in this case, a word character) one
+	  or more times. Taken with the previous item, this means we
+	  have to have at least one word character but could have
+	    many, but nothing else (e.g., no spaces).</dd>
+	  <dt>$</dt>
+	  <dd>This is a special symbol in regular expressions meaning
+	    the end of a line. This means that nothing else can appear
+	    on the line after the previous items, or else there will not
+	    be a match.</dd>
+	  </dl></div>
+      </p>
+
+      <p>That may be enough for many uses, but for more complicated uses you can try <a href="https://regexone.com/">an interactive tutorial</a>.</p>
+
+      <p>Regular expression can also be used during the 'explore' phase, below.</p>
+											
+    </div> <!-- alert (regular expressions) -->
+
+    <p>The <em>Wrangle</em> page will also allow you to set names for the
+    different 'levels' of your folder hierarchy. This is just for
+    convenience; it provides more intuitive labels for some of the
+      tables and charts.</p>
+
+    <p>The page also provides a few statistics and informational items
+    about what the software was able to read from your data.</p>
+
+  <h3 id="explore">4. Explore your Dataset</h3>
+
+  <p>Now you are ready to explore the dataset. After wrangling, you
+  should automatically be taken to the <em>Explore</em> page of the dashboard
+    (if not, you can get there using the top navigation bar).</p>
+
+  <p>The <em>Settings</em> tab provides the details the software needs
+    to process and analyze the data.
+
+    <dl>
+      <dt>Unit of Analysis</dt>
+      <dd><p>Often analyzing full articles is not effective, since an
+      article can discuss several topics of interest. Hence, this item
+      allows you to break up articles into smaller 'chunks' for
+	  analysis.</p>
+
+	<p><em>Articles</em>, <em>Sentences</em>,
+	  and <em>Paragraphs</em> should be self-explanatory.
+
+	  <em>Fixed-sized windows</em> split each article into chunks
+	  containing a fixed number (5) of sentences (except the chunk
+	  at the end of an article, which have fewer sentences).
+
+	  <em>Overlapping Contexts</em> searches for one of the filter
+	  terms, and, when found, yields a chunk containing that
+	  sentence, the two previous sentences, and the two following
+	  sentences. Two chunks produced with this method may share
+	  some sentences if filter terms appear close to each other,
+	  which may or may not be a problem for the analysis.
+	  
+	  <em>Non-overlapping Contexts</em> is the same
+	  as <em>Overlapping Contents</em> except that chunks are
+	  guaranteed not to overlap. This may cause some chunks to
+	  have fewer context sentences before a filter term, since
+	  those sentences would be included only with the previous
+	  chunk.
+	  
+	</p>
+
+	<div class="alert alert-danger">
+	  <h5 class="alert-heading">Caution</h5>
+	  <p>Splitting text into paragraphs and sentences is
+	  approximate. Paragraphs may not be correctly detected if
+	  subsequence paragraphs appear on the next line, as opposed
+	  to with a blank line in-between. Complicated sentences,
+	  especially those containing quotes, may not be split
+	  correctly. This software uses standard techniques for
+	  splitting that are correct for many common cases, but in
+	  general such splitting is an unsolved problem.</p>
+	</div> <!-- alert about approximate text parsing -->
+      </dd>
+      <dt>Filter Terms</dt>
+      <dd>These terms are used to winnow down the 'chunks' or units of
+      analysis from above -- only those chunks containing these terms
+      will be used.</dd>
+      <dt>Analysis Terms</dt>
+      <dd>These terms are used to further analyze the filtered
+      chunks. The filtered chunks will be grouped based on the
+      analysis terms they contain and analyzed separately so that they
+      can be compared. For example, you might compare chunks that
+      contain 'Trump' versus chunks that contain 'Biden', so see how
+      the average sentiment differs, or whether 'Trump' appeared more
+      or less often than 'Biden' in Mexican news articles.</dd>
+      <dt>Level Filters</dt>
+      <dd>If you would like to ONLY include articles from certain
+      folders, you can do so here, e.g., by selecting 'Mexico', and
+      then 'phase 1' and 'phase 2'.</dd>
+      <dt>Number of Clusters</dt>
+      <dd>The software will automatically try to clusters the chunks
+      using unsupervised machine learning. This setting determines how
+      many clusters the software should look for.</dd>
+    </dl>
+  </p>
+
+  <p>After filling out the settings and clicking "Analyze" you can
+  view the results in the other tabs! Large datasets may take several
+  seconds to process.</p>
 
 </div>
 

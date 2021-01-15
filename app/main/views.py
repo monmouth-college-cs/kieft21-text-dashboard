@@ -5,8 +5,9 @@ from .forms import UploadForm, make_wrangle_form, make_analysis_form, SaveForm
 from .process import process
 from .util import is_supported_file
 from werkzeug.utils import secure_filename
+from wtforms import FormField
 from pathlib import Path
-import sys, json, zipfile, re
+import sys, json, zipfile, re, os
 import pandas as pd
 
 def get_datasets():
@@ -48,6 +49,10 @@ def page_not_found(e):
     r,w = get_datasets()
     return render_template('404.html', datasets_raw=r, datasets_wrangled=w), 404
 
+@main.route('/robots.txt')
+def robots():
+    return "User-agent: *\nDisallow: /"
+
 @main.route('/')
 @main.route('/about')
 def about():
@@ -62,8 +67,8 @@ def upload():
     form = UploadForm()
     if form.validate_on_submit():
         f = form.zipfile.data
-        name = form.name.data
         filename = secure_filename(f.filename)
+        name = form.name.data.strip() or os.path.splitext(filename)[0]
         path = (Path(current_app.instance_path) / 'datasets' / 'zips' / filename).resolve()
         dirname = get_dataset_home(name)
         if dirname.exists():
@@ -87,7 +92,11 @@ def do_explore(dataset, form):
     for field in form: # assume no subfields?
         if field.name == 'submit' or field.name.startswith('csrf'): continue
         assert field.name not in data
-        data[field.name] = field.data
+        if isinstance(field, FormField):
+            for subfield in field:
+                data[subfield.name] = subfield.data
+        else:
+            data[field.name] = field.data
 
     results = process(dataset, path, data)
     return results
@@ -163,7 +172,8 @@ def get_files(dname):
 
 def do_wrangle(name, oneper, splitter, use_regex, level_names, level_vals):
     vals = [list(x) for x in level_vals]
-    info = {'level_names': level_names, 'level_vals': vals}
+    names = [name if name else f'level{i}' for i,name in enumerate(level_names)]
+    info = {'level_names': names, 'level_vals': vals}
     if oneper:
         info['article_regex_splitter'] = None
     elif use_regex:

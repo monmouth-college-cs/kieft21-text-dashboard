@@ -12,7 +12,7 @@ from .util import is_supported_file
 # Split out the levels given a file path relative to a dataset's home directoy
 def parse_levels(filename, home):
     relpath = str(Path(filename).absolute().relative_to(home))
-    return [x.replace(' ', '_') for x in relpath.split(os.sep)[:-1]]
+    return [x.replace(' ', '_').lower() for x in relpath.split(os.sep)[:-1]]
 
 # Yield all filenames from path.
 def get_files(path):
@@ -60,9 +60,10 @@ def read_text_file(filename, splitter):
     else:
         yield doc
 
-def load_xlsx_sheet(ws, text_col_pattern):
+# filename and sheet_name are only for error messages
+def load_xlsx_sheet(filename, sheet_name, ws, text_col_pattern):
     def bad(msg):
-        print(f"\tWARNING: ({fname}[{sheet_name}]) -- {msg}.")
+        print(f"\tWARNING: ({filename}[{sheet_name}]) -- {msg}.")
     data = ws.values
     try:
         header = next(data)
@@ -73,7 +74,7 @@ def load_xlsx_sheet(ws, text_col_pattern):
                         header[i] is not None and \
                         text_col_pattern.search(header[i])]
     if len(text_col_indices) == 0:
-        bad(f"No columns match {self.pattern.pattern}; skipping.")
+        bad(f"No columns match {text_col_pattern.pattern}; skipping.")
         return
     idx = text_col_indices[-1]
     if len(text_col_indices) > 1:
@@ -90,12 +91,12 @@ def load_xlsx_sheet(ws, text_col_pattern):
         yield text
 
 # @TODO: Prompt user for text column pattern
-DEFAULT_COLUMN = re.compile(r'\btext\b')
+DEFAULT_COLUMN = re.compile(r'^Text')
 def read_xlsx_file(filename, text_col_pattern=DEFAULT_COLUMN):
     wb = load_workbook(filename)
     for name in wb.sheetnames:
         ws = wb[name]
-        yield from load_xlsx_sheet(ws, text_col_pattern)
+        yield from load_xlsx_sheet(filename, name, ws, text_col_pattern)
 
 # Yield all articles from filename, using `splitter` to split the file into articles.
 def load_file(filename, splitter):
@@ -247,7 +248,14 @@ def get_chunks(article, unit, fpat=None):
     yield from parsers[unit](article, fpat)
 
 def load_dir(home, level_filters, uoa, fpattern, splitter):
-    articles, chunks = defaultdict(list), defaultdict(list)
+
+    # I set all these to empty lists instead of defaultdict to make
+    # sure we have all the right columns.
+    chunks = {'Text': [], 'Article ID': [], 'Filename': []}
+    articles = {'Filename': []}
+    chunks.update({f'_level_{i}': [] for i in range(len(level_filters))})
+    articles.update({f'_level_{i}': [] for i in range(len(level_filters))})
+
     files = list(get_files_filtered(home, level_filters))
 
     def append_levels(d, levs):
@@ -268,6 +276,7 @@ def load_dir(home, level_filters, uoa, fpattern, splitter):
                 chunks['Article ID'].append(aid)
                 chunks['Filename'].append(filename.name)
                 append_levels(chunks, levels)
+
     return pd.DataFrame(articles), pd.DataFrame(chunks)
                 
 import unittest

@@ -4,8 +4,128 @@
 
 {% block page_content %}
 
+<div class="jumbotron py-3">
+  <h2 class="display-5 text-center">About this Software</h2>
+</div>
+
 <div class="container">
-  <h2>Hello, world!</h2>
+
+  <h4>Purpose</h4>
+  <p>This research prototype dashboard was created to help explore
+  from text data. In particular, the focus is on news media
+  text. Through the use of unsupervised machine learning, we hope it
+  will deliver insights that are both useful and complementary to
+  those produced by human experts.</p>
+
+  <div class="alert alert-danger">
+    <h4 class="alert-heading">Warning</h4>
+    <p>This software is not meant to be exposed to the public
+    internet. The application is not secure and exposes any uploaded
+    data to its network. If it is used on the public internet, the
+    uploaded data is available to anyone. Building a secure web
+    application would require significant engineering effort, which is
+    not feasible for a research prototype.</p>
+    </p>
+  </div>
+
+  <h4>Contributors</h4>
+
+  <p> This dashboard was developed by the <em>Media Ecology and
+  Strategic Analysis (MESA)</em> group, an interdisciplinary group
+  with a broad mission to address the rising need for strategic
+  narrative assessment as a tool for promoting cooperative assistance
+  and creating community power. For more information on the MESA
+  Group, please visit <a href="https://mesagroup.okstate.edu.">our
+      homepage</a>.</p>
+
+  <h5>Main Developers</h5>
+
+  <ul>
+    <li>Ryan McKirdy, a computer science student
+      at <a href="https://monmouthcollege.edu">Monmouth College</a></li>
+    <li><a href="https://robertutterback.github.io">Robert Utterback</a>, a member of <abbr title="Media Ecology and
+    Strategic Analysis">MESA</abbr> and assistant professor of
+    computer science at <a href="https://monmouthcollege.edu">Monmouth
+    College</a></li>
+  </ul>
+
+  <h4>Acknowledgments</h4>
+
+  <p>This software was funded by the <em>U.S. Department of Homeland
+      Security</em> under Grant Award Number 17STBTI00001 (formerly
+      2015-ST-061-BSH001), under the guidance of the <em>Borders,
+      Trade, and Immigration (BTI) Institute at the University of
+      Houston</em>.</p>
+
+  <h4>Open Source Component License Notices</h4>
+
+  <p>This software relies on many open source software libraries, all
+  of which freely allow use and distribution of the code. These
+  components were used to generate output, but the source code of
+  these libraries was not modified. They are listed below, along with
+  a link to the license for each.</p>
+
+  <table>
+    <thead><tr><th>Name</th><th>License</th></thead>
+    <tbody>
+      <tr>
+	<td><a href="https://flask.palletsprojects.com/en/1.1.x/">Flask</a></td>
+	<td><a href="https://flask.palletsprojects.com/en/1.1.x/license/">BSD 3-Clause</a></td>
+      </tr>
+      <tr>
+	<td><a href="https://wtforms.readthedocs.io/en/2.3.x/">WTForms</a></td>
+	<td><a href="https://wtforms.readthedocs.io/en/2.3.x/license/">BSD 3-Clause</a></td>
+      </tr>
+      <tr>
+	<td><a href="https://flask-wtf.readthedocs.io/en/stable/">Flask-WTF</a> </td>
+	<td><a href="https://flask-wtf.readthedocs.io/en/stable/license.html">BSD 3-Clause</a></td>
+      </tr>
+      <tr>
+	<td><a href="https://getbootstrap.com/">Bootstrap</a> </td>
+	<td><a href="https://github.com/twbs/bootstrap/blob/main/LICENSE">MIT</a></td>
+      </tr>
+      <tr>
+	<td><a href="https://bootstrap-flask.readthedocs.io/en/stable/">Bootstrap-Flask</a> </td>
+	<td><a href="https://github.com/greyli/bootstrap-flask/blob/master/LICENSE">MIT</a></td>
+      </tr>
+      <tr>
+	<td><a href="https://fontawesome.com/">Font Awesome</a> (an icon library) </td>
+	<td><a href="https://fontawesome.com/license/freeic">Font Awesome Free License</a>: Icons -- <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>, Fonts -- <a href="https://scripts.sil.org/OFL">SIL OFL 1.1</a>, Code -- <a href="https://opensource.org/licenses/MIT">MIT</a></td>
+      </tr>
+      <tr>
+	<td><a href="https://flask-fontawesome.readthedocs.io/en/latest/">Flask-FontAwesome</a> </td>
+	<td><a href="https://github.com/heartsucker/flask-fontawesome/blob/develop/LICENSE-MIT">MIT</a> (dual-licensed with Apache-2.0)</tr>
+      <tr>
+	<td><a href="https://pandas.pydata.org/">Pandas</a> </td>
+	<td><a href="https://pandas.pydata.org/docs/getting_started/overview.html?highlight=license">BSD 3-Clause License</a></td>
+      </tr>
+      <tr>
+	<td><a href="https://openpyxl.readthedocs.io/en/stable/">OpenPyXL</a> </td>
+	<td><a href="https://foss.heptapod.net/openpyxl/openpyxl/-/blob/branch/3.0/LICENCE.rst">MIT</a></td>
+      </tr>
+      <tr>
+	<td><a href="https://www.nltk.org/">Natural Language Toolkit (NLTK)</a></td>
+	<td><a href="https://www.apache.org/licenses/LICENSE-2.0">Apache-2.0</a></td>
+      </tr>
+      <tr>
+	<td><a href="https://chardet.github.io/">Chardet</a> </td>
+	<td><a href="https://github.com/chardet/chardet/blob/master/LICENSE">GNU LGPL-2.1</a></td>
+      </tr>
+      <tr>
+	<td><a href="https://plotly.com/">Plotly</a> </td>
+	<td><a href="https://github.com/plotly/plotly.py/blob/master/LICENSE.txt">MIT</a></td>
+      </tr>
+      <tr>
+	<td><a href="https://scikit-learn.org/stable/">Scikit-Learn</a> </td>
+	<td><a href="https://github.com/scikit-learn/scikit-learn/blob/master/COPYING">BSD 3-Clause</a></td>
+      </tr>
+      <tr>
+	<td><a href="https://amueller.github.io/word_cloud/">WordCloud</a> </td>
+	<td><a href="https://github.com/amueller/word_cloud/blob/master/LICENSE">MIT</a></td>
+      </tr>
+
+    </tbody>
+  </table>
 
 </div>
 

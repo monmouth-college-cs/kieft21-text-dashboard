@@ -33,9 +33,9 @@
 
       <div class="collapse navbar-collapse" id="navbarSupportedContent">
 	<ul class="navbar-nav">
-	{{ render_nav_item('.about', 'About', use_li=True) }}
-	{{ render_nav_item('.tutorial', 'Tutorial', use_li=True) }}
-	{{ render_nav_item('.upload', 'Upload', use_li=True) }}
+	{{ render_nav_item('main.about', 'About', use_li=True) }}
+	{{ render_nav_item('main.tutorial', 'Tutorial', use_li=True) }}
+	{{ render_nav_item('main.upload', 'Upload', use_li=True) }}
 
 	<li class="nav-item dropdown">
 	  <a class="nav-link dropdown-toggle" href="#"
@@ -79,7 +79,7 @@
     </main>    
 
 <footer class="bg-dark text-white-50 text-center footer mt-3">
-    <small>Copyright &copy; More text</small>
+    <small>Copyright &copy; 2021 <em>Robert Utterback</em>.</small>
 </footer>
 
 {% block scripts %}
