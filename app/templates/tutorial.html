@@ -42,8 +42,9 @@
 
   <div class="alert alert-info" role="alert">
     <h4 class="alert-heading">Supported File Types</h4>
-    <p>Currently this dashboard supports <strong>plain text</strong> files and <strong>Excel
-	(.xlsx)</strong> files.</p>
+    <p>Currently this dashboard supports <strong>plain text
+	(.txt)</strong> files and <strong>Excel (.xlsx)</strong>
+	files.</p>
 
     <p>The simplest case is plain text files that contain a single
     article each. However, articles retrieved from a database or via a
@@ -56,8 +57,28 @@
 
     <p>Excel files should contain worksheets with a column in the 'A'
       row that starts with "Text". Each cell below that will be read
-      as a separate article.Note: Older Excel files (.xls) are not
+      as a separate article. Note: Older Excel files (.xls) are not
       supported.</p>
+  </div>
+
+  <div class="alert alert-warning" role="alert">
+    <h4 class="alert-heading">On the Importance of Clean Data</h4>
+    <p>Whatever file formats you choose, it is important that you data
+    is as "clean" as possible. In the case of news articles this means
+    that (1) each article is clearly separated with a consistent
+    pattern, and (2) article metadata (title, author, publishers,
+      etc.) is minimized.</p>
+
+    <p>In the two sample datasets you will find that the data is not
+    well-cleaned. Although the articles are separated, they are filled
+    with metadata before the body of each article. Worse, many of
+    these articles contain artificats related to the news websites,
+      e.g., navigation links.</p>
+
+    <p>Some insights can still be gleaned from such data, but their
+    usefulness can be clouded by the "junk" that the algorithms will
+    pick up on. Machine learning algorithms, particularly clustering,
+      will pick up any patterns, junk or not.</p>
   </div>
 
   <p>Finally, you need to put this hierarchy into a zip file. At the
@@ -201,7 +222,7 @@
 	  <h5 class="alert-heading">Caution</h5>
 	  <p>Splitting text into paragraphs and sentences is
 	  approximate. Paragraphs may not be correctly detected if
-	  subsequence paragraphs appear on the next line, as opposed
+	  subsequent paragraphs appear on the next line, as opposed
 	  to with a blank line in-between. Complicated sentences,
 	  especially those containing quotes, may not be split
 	  correctly. This software uses standard techniques for
@@ -213,7 +234,11 @@
       <dd>These terms are used to winnow down the 'chunks' or units of
       analysis from above -- only those chunks containing these terms
       will be used.</dd>
-      <dt>Analysis Terms</dt>
+      <dt>Level Filters</dt>
+      <dd>If you would like to ONLY include articles from certain
+      folders, you can do so here, e.g., by selecting 'Mexico', and
+      then 'phase 1' and 'phase 2'.</dd>
+      <dt>Analysis ('Breakdown') Terms</dt>
       <dd>These terms are used to further analyze the filtered
       chunks. The filtered chunks will be grouped based on the
       analysis terms they contain and analyzed separately so that they
@@ -221,10 +246,6 @@
       contain 'Trump' versus chunks that contain 'Biden', so see how
       the average sentiment differs, or whether 'Trump' appeared more
       or less often than 'Biden' in Mexican news articles.</dd>
-      <dt>Level Filters</dt>
-      <dd>If you would like to ONLY include articles from certain
-      folders, you can do so here, e.g., by selecting 'Mexico', and
-      then 'phase 1' and 'phase 2'.</dd>
       <dt>Number of Clusters</dt>
       <dd>The software will automatically try to clusters the chunks
       using unsupervised machine learning. This setting determines how
@@ -234,7 +255,52 @@
 
   <p>After filling out the settings and clicking "Analyze" you can
   view the results in the other tabs! Large datasets may take several
-  seconds to process.</p>
+  minutes to process, so you may be redirected to an "in-progress"
+  page.</p>
+
+  <div class="alert alert-secondary">
+    <h5 class="alert-heading">Example</h5>
+  
+  <p>Consider the running example discussed in this tutorial. After
+    uploading and wrangling, you might choose a 'sentence' unit of
+    analysis, filter to sentences containing "migrant" or
+    "immigration", select only Mexico, select all phases, use analysis
+    terms "Biden", "Trump", and "wall", and search for 5 clusters.</p>
+
+    <p>In the "Summary" tab, you would see general statistical
+    information and plots about all sentences containing "migrant" or
+    "immigration".</p>
+
+    <p> In the "Analysis Terms" tab, you will see some additional
+    statistical information, but more importantly, an analysis of
+    sentiment. In this case you will see separate analyses for all
+    sentences containing "Biden", all sentences containing "Trump",
+    and all sentences containing "wall". These sentences must ALSO
+    contain one of the filter terms, "migrant" or "immigration". So
+    the analysis of "wall" will show you how sentences containing
+    "migrant" or "immigration" felt about the wall (presumably the
+    border wall), while the "Trump" and "Biden" analyses allows you to
+    compare how sentences containing "migrant" or "immigration" felt
+    about each of the main presidential candidates. This sentiment is
+    also visualized as a heatmap over the phases, showing you how the
+    sentiment changed throughout all the phases. </p>
+
+    <p>The "Text" tab shows you all the sentences found, along with the
+    sentiment of each. </p>
+
+    <p>Finally, the "Clusters" tab shows a visualization about the
+    clustering, plus some information to help you determine the topics
+    discussed in each cluster. In particular, for each cluster you can
+    see the most common words and two-word phases, the most important
+    words (as determined by the clustering algorithm; not the same as
+    most common), and the 5 sentences that are most representative of
+      that cluster.</p>
+
+    <p>If you had chosen fixed-sized windows instead of sentences, all
+    the results would be presented in terms of groups of 5 sentences,
+    instead of single sentences.</p>
+  </div>
+
 
 </div>
 

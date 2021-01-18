@@ -46,7 +46,7 @@
 	  <ul class="dropdown-menu" aria-labelledby="wrangle-dropdown">
 	    <li class="dropdown-header">Datasets</li>
 	    <hr role="separator" class="divider">
-	    {% for dset in datasets_raw %}
+	    {% for dset in datasets_preprocessed %}
 	    <li class="dropdown-item"><a href="/wrangle/{{ dset }}">{{ dset }}</a></li>
 	    {% endfor %}
 	  </ul>

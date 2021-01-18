@@ -1,7 +1,7 @@
 from flask_wtf import FlaskForm
 from flask_wtf.file import FileField, FileAllowed, FileRequired
 from wtforms import StringField, SubmitField, SelectField, SelectMultipleField, \
-    BooleanField, RadioField, Form, FormField
+    BooleanField, RadioField, Form, FormField, MultipleFileField
 from wtforms.fields import html5 as h5fields
 from wtforms.widgets import html5 as h5widgets
 from wtforms.validators import DataRequired, Regexp, NumberRange
@@ -16,13 +16,6 @@ class MyIntegerField(h5fields.IntegerField):
         super().__init__(label, validators,
                          widget=h5widgets.NumberInput(min=min, max=max, step=step),
                          **kwargs)
-
-class SaveForm(FlaskForm):
-    _rv = Regexp(re.compile(r'^(?!__)\w+$'),
-                 message="Must be alphanumeric and not start with double underscores.")
-    tag = StringField('Unique Name', validators=[DataRequired(), _rv],
-                      description = "Please specify a unique string.")
-    submit_save = SubmitField('Save Results')
 
 # Help Popovers.
 from wtforms import Label
@@ -44,13 +37,26 @@ def make_popover(helptext, title='Help'):
 #         super().__init__(label, validators, **kwargs)
 #         self.label.extra = helptext
 
-for parent in [BooleanField, StringField, FileField]:
+for parent in [BooleanField, StringField, FileField, SelectField]:
     class Class_(parent):
         def __init__(self, label='', validators=None,
                      helptext=None, helptitle='Help', **kwargs):
             super().__init__(label, validators, **kwargs)
             self.label.extra = make_popover(helptext, helptitle)
     globals()['H'+parent.__name__] = Class_
+
+class FolderField(MultipleFileField):
+    def __init__(self, label='', validators=None, **kwargs):
+        dir_attrs = {'directory': "", 'webkitdirectory': "", 'mozdirectory': ""}
+        if 'render_kw' not in kwargs:
+            kwargs['render_kw'] = dir_attrs
+        else:
+            kwargs['render_kw'].update(dir_attrs)
+        super().__init__(label, validators, **kwargs)
+
+class U2Form(FlaskForm):
+    files = FolderField('Folder?')
+    submit = SubmitField('Upload')
 
 # @TODO: I would really like to allow uploading a whole folder
 # (preserving hierarchy), but it seems difficult. See here:
@@ -83,7 +89,9 @@ def make_wrangle_form(levels):
         splitter = HStringField('Article Splitter', helptext=help_splitter,
                                 description = "Only for plain text files.",
                                 render_kw={'disabled': 'true'})
-        split_regex = BooleanField('Use Regular Expression?', render_kw={'disabled': 'true'})
+        split_regex = HBooleanField('Use Regular Expression?',
+                                    helptext="Allows more complicated patterns, as described in the tutorial.",
+                                    render_kw={'disabled': 'true'})
         #submit = SubmitField('Wrangle')
 
     help_levels = "Provide a descriptive name for this level."
@@ -98,11 +106,6 @@ def make_wrangle_form(levels):
     setattr(WrangleForm, 'submit', SubmitField('Wrangle'))
     
     return WrangleForm()
-
-# class ExploreFilterForm(Form):
-#     fterms = StringField('Filter Terms')
-#     fcase = BooleanField('Ignore case?', default=True)
-#     fregex = BooleanField('Use Regular Expression?', default=False)
 
 def make_level_select(level_names, level_vals):
     class LevelSelect(Form):
@@ -126,15 +129,20 @@ def make_analysis_form(level_names, level_vals):
                     ('sentences', 'Sentences'),
     ]
     class AnalysisForm(FlaskForm):
-        unit = SelectField('Unit of Analysis', choices=unit_choices)
+        unit = HSelectField('Unit of Analysis', choices=unit_choices,
+                            helptext="Determines how we break articles into smaller pieces, called 'chunks'.")
         
-        fterms = StringField('Filter Terms')
-        fcase = BooleanField('Ignore case?', default=True)
-        fregex = BooleanField('Use Regular Expression?', default=False)
+        fterms = HStringField('Filter Terms', helptext="Only chunks containing at least one of these terms will be kept. Separate terms with a space.")
+        fcase = HBooleanField('Ignore case?', default=True,
+                              helptext="If checked, filtering is not case sensitive, i.e., captialized vs not capitalized doesn't amtter.")
+        fregex = HBooleanField('Use Regular Expression?', default=False,
+                               helptext="Allows more complicated patterns, as described in the tutorial.",)
         
-        aterms = StringField('Analysis Terms')
-        acase = BooleanField('Ignore case?', default=True)
-        aregex = BooleanField('Use Regular Expression?', default=False)
+        aterms = HStringField('Analysis Terms', helptext="We analyze the sentiment for all chunks containing these terms. We do this analysis separately for each term, allowing you to compare overall sentiment of each term.")
+        acase = HBooleanField('Ignore case?', default=True,
+                              helptext="If checked, filtering is not case sensitive, i.e., captialized vs not capitalized doesn't amtter.")
+        aregex = HBooleanField('Use Regular Expression?', default=False,
+                               helptext="Allows more complicated patterns, as described in the tutorial.",)
 
     AnalysisForm.level_select = make_level_select(level_names, level_vals)
 

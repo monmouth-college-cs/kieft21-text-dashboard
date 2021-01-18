@@ -1,4 +1,8 @@
-import re, shlex, base64, io
+import re, shlex, base64, io, json, uuid
+from zipfile import ZipFile
+from pathlib import Path
+from chardet import UniversalDetector
+from multiprocessing import Process
 
 import pandas as pd
 import numpy as np
@@ -13,7 +17,100 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.decomposition import PCA
 from sklearn.cluster import KMeans
 
-from .reader import load_dir
+from .reader import load_raw_articles, load_wrangled
+from .util import is_supported_filename
+
+detector = UniversalDetector()
+def guess_encoding(of):
+  detector.reset()
+  for line in of:
+    detector.feed(line)
+    if detector.done: break
+  detector.close()
+  if detector.result['confidence'] < 0.5:
+    # print('\n--- Low confidence!---')
+    # print(detector.result)
+    return None
+  # if ascii, just use utf-8 in case it's wrong
+  encoding = detector.result['encoding']
+  if encoding == 'ascii':
+    return 'utf-8'
+  # sometimes chardet makes weird guesses for Windows, like Windows-1254 (Turkish)...
+  if encoding.startswith('Windows-'):
+    return 'Windows-1252'
+  return encoding
+
+CHUNK_SIZE = 1024*1024
+def iter_binary_buffered(binary, encoding):
+  # @TODO: Instead of silently replacing encoding errors, it would be
+  # nice to at least print/log a warning somewhere. But we also don't
+  # want to have to re-encode everything if the error happened near
+  # the end of the file. To do this, I think you want to look at:
+  # codecs.register_error()
+  with io.TextIOWrapper(binary, encoding, errors='replace') as wrapper:
+    while True:
+      chunk = wrapper.read(CHUNK_SIZE)
+      if not chunk: return
+      yield chunk
+
+def binary_to_file(binary, encoding, path):
+  with path.open('w') as output:
+    for chunk in iter_binary_buffered(binary, encoding):
+      output.write(chunk)
+
+def make_dataset(home, zfile, wait_time=2):
+    # (home / '.error').unlink(missing_ok=True) # only 3.8
+    errfile = home / '.error'
+    if errfile.exists():
+        errfile.unlink()
+    p = Process(target=extract, args=(home, zfile))
+    p.start()
+    # allow some time to finish, in which case we can take the user
+    # directly to the next stage.
+    p.join(timeout=wait_time)
+    return not p.is_alive()
+
+def extract(home, zfile):
+    try:
+        home.mkdir(parents=True, exist_ok=False)
+        zf = ZipFile(zfile, 'r')
+
+        for filename in zf.namelist():
+            path = home / Path(filename)
+            if filename.endswith('/'):
+                # we want to explicitly make these, since we want to keep empty directories.
+                path.mkdir(parents=True, exist_ok=True)
+                continue
+            if not is_supported_filename(path):
+                print("Skipping unsupported file: ", filename)
+                continue
+
+            # Might not have gotten to the directory yet in the for loop...
+            path.parent.mkdir(parents=True, exist_ok=True)
+            print("Start ", filename, end='')
+
+            if filename.endswith('.txt'):
+                with zf.open(filename) as binary:
+                    encoding = guess_encoding(binary)
+                print(f' ({encoding}) ', end='')
+                with zf.open(filename) as binary:
+                    binary_to_file(binary, encoding, path)
+            else:
+                zf.extract(filename, home)
+            
+            print('\t...done!')
+    except Exception as e:
+        print("Preprocessing failed!")
+        print(e)
+        with open(home / '.error', 'w') as f:
+            f.write(str(e))
+        raise
+
+    print(f"Successfully preprocessed {zfile} into {home}")
+    # just touch a file to indicate we are done
+    with open(home / '.preprocessed', 'w') as f:
+        pass
+    
 
 def summarize_by_level(df, levnames, title=None, histfunc='count', z=None):
     nlev = len(levnames)
@@ -118,7 +215,6 @@ def build_results(articles, chunks, matches, levnames, unit,
                 summarize_by_level(this, levnames, title=term,
                                    histfunc='avg', z='Sentiment Score')
         by_level_text.append(bylev)
-            
 
     res['matches_sentiment_summary'] = make_table(sent)
     res['matches_sentiment_breakdown'] = '\n<br>\n'.join(by_level_text)
@@ -175,8 +271,8 @@ def build_results(articles, chunks, matches, levnames, unit,
     for i in range(k):
         info = dict()
         idx = keywords[i,:]
-        info['keywords'] = words[keywords[i,:]]
-        info['reps'] = chunks.iloc[reps[:,i], :]['Text']
+        info['keywords'] = list(words[keywords[i,:]])
+        info['reps'] = list(chunks.iloc[reps[:,i], :]['Text'])
         
         idx = chunks['_cluster'] == i
         info['cloud'] = series2cloud_img(chunks.loc[idx, 'Text'])
@@ -201,29 +297,70 @@ def build_regex(s, use_regex, case, flags=0):
     if case: rflags |= re.I
     return re.compile(pat, flags=rflags)
 
-
-def process(dname, path, info):
+def process(dname, path, form):
     #@TODO: Check for saved articles/chunks with same parameters
     
-    level_filters = [info[key] for key in sorted(info)
+    level_filters = [form[key] for key in sorted(form)
                      if re.match('level_select-level[0-9]+_filter', key)]
     for i in range(len(level_filters)):
         for j in range(len(level_filters[i])):
             level_filters[i][j] = level_filters[i][j].lower()
 
-    fpat = build_regex(info['fterms'], info['fregex'], info['fcase'])
-    apat = build_regex(info['aterms'], info['aregex'], info['acase'])
-    spat = re.compile(info['article_regex_splitter'], flags=re.M)
+    fpat = build_regex(form['fterms'], form['fregex'], form['fcase'])
+    apat = build_regex(form['aterms'], form['aregex'], form['acase'])
 
-    articles_df, chunks_df = load_dir(path, level_filters, info['unit'], fpat, spat)
+    # @TODO: We're assuming that if the user chose regex for analysis
+    # terms, they did not use a space...
+    flags = re.I if form['aregex'] else 0
+    analysis_regexes = {term: re.compile(f'\\b{term}\\b', flags=flags)
+                        for term in form['aterms'].split()}
 
-    colmap = {f'_level_{i}': name for i, name in enumerate(info['level_names'])}
+    outdir = path / '.output'
+    outdir.mkdir(exist_ok=True)
+    
+    uid = uuid.uuid4().hex
+    outfile = outdir / uid
+    if outfile.exists():
+        outfile.unlink()
+        
+    # (home / '.error').unlink(missing_ok=True) # only 3.8
+    errfile = path / '.error'
+    if errfile.exists():
+        errfile.unlink()
+
+    args = uid, path, form['level_names'], level_filters, form['unit'], \
+           fpat, apat, analysis_regexes, form['n_clusters']
+    p = Process(target=explore, args=args)
+    p.start()
+    # allow some time to finish, in which case we can take the user
+    # directly to the next stage.
+    p.join(timeout=3)
+    return uid
+    
+def explore(uid, path, level_names, level_filters, uoa,
+            fpat, apat, analysis_regexes, n_clusters):
+    print(f'Begin explore "{path.name}": {uid}') 
+    articles_df, chunks_df = load_wrangled(path, level_filters, uoa, fpat)
+
+    print("Finished loading data:")
+    print('\t Articles: ', articles_df.shape)
+    print('\t Chunks: ', chunks_df.shape)
+
+    # @TODO: write to log file
+    if chunks_df.shape[0] == 0:
+        res = dict()
+        res['error'] = "Nothing matched the filter terms!"
+        print(res['error'])
+        outfile = path / '.output' / uid
+        with open(outfile, 'w') as f:
+            json.dump(res, f)
+        return
+
+    colmap = {f'_level_{i}': name for i, name in enumerate(level_names)}
     articles_df.rename(columns=colmap, inplace=True)
     chunks_df.rename(columns=colmap, inplace=True)
 
-    chunks_df = chunks_df.reindex([*info['level_names'], 'Filename', 'Article ID', 'Text'], axis=1)
-    print(articles_df.shape)
-    print(chunks_df.shape)
+    chunks_df = chunks_df.reindex([*level_names, 'Filename', 'Article ID', 'Text'], axis=1)
     
     analyzer = SentimentIntensityAnalyzer()
     def score(row):
@@ -232,17 +369,60 @@ def process(dname, path, info):
 
     matches_df = chunks_df.query('Text.str.contains(@apat)')
 
-    # @TODO: We're assuming that if the user chose regex for analysis
-    # terms, they did not use a space...
-    flags = re.I if info['aregex'] else 0
-    analysis_regexes = {term: re.compile(f'\\b{term}\\b', flags=flags)
-                        for term in info['aterms'].split()}
-
     #@TODO: Save articles/chunks after filtering, plus parameters used
 
-    #@TODO: Save html results
+    res = build_results(articles_df, chunks_df, matches_df, level_names,
+                        uoa, analysis_regexes, n_clusters)
+
+    outfile = path / '.output' / uid
+    with open(outfile, 'w') as f:
+        json.dump(res, f)
+
+    print(f'"{path.name} results built and dumped: {uid}')
+
+def wrangle_dataset(path, oneper, splitter, use_regex, level_names, level_vals):
+    vals = [list(x) for x in level_vals]
+    names = [name if name else f'level{i}' for i,name in enumerate(level_names)]
+    if oneper:
+        pat = None
+    elif use_regex:
+        pat = splitter
+    else: # plain text splitter, treat as regex anyway
+        pat = re.escape(splitter)
+
+    # (path / '.error').unlink(missing_ok=True) # only 3.8
+    errfile = path / '.error'
+    if errfile.exists():
+        errfile.unlink()
+
+    p = Process(target=parse_articles, args=(path, names, vals, pat))
+    p.start()
+    # allow some time to finish, in which case we can take the user
+    # directly to the next stage.
+    p.join(timeout=2)
+    return not p.is_alive()
+
+def parse_articles(path, level_names, level_vals, splitter):
+    print(f"Wrangling started: {path}")
+    try:
+        regex = re.compile(splitter, flags=re.M)
+        articles = load_raw_articles(path, level_names, regex)
+        articles.to_pickle(path / '.wrangled.pkl')
+    except Exception as e:
+        print("Wrangling failed!")
+        print(e)
+        with open(path / '.error', 'w') as f:
+            f.write(str(e))
+        raise
+
+    print(f"Successfully wrangled {path}")
+    print(articles.shape)
+    # save some info for later (no longer used since we pickled)
+    # also indicates to the rest of the server that we are done wrangling
+    info = dict(level_names=level_names, level_vals=level_vals,
+                article_regex_splitter=splitter)
+    with open(path / '.info.json', 'w') as f:
+        json.dump(info, f)
     
-    return build_results(articles_df, chunks_df, matches_df,
-                         info['level_names'], info['unit'], analysis_regexes,
-                         info['n_clusters'])
-    
+
+

@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% from "bootstrap/form.html" import render_form, render_field %}
+
+{% block title %}Test Page{% endblock %}
+
+{% block head %}
+{{ super() }}
+{{ dropzone.load_css() }}
+{% endblock %}
+
+
+{% block page_content %}
+
+<div class="container">
+  <h2>Experiments</h2>
+
+  <p>This page is only for testing. Please do not use it!</p>
+
+  <p>An attempt to allow uploading a folder. Doesn't work.</p>
+
+  {{ render_form(form, id="folderform") }}
+
+  <!-- See here to finish this: https://stackoverflow.com/questions/39664662/how-to-upload-and-list-directories-at-firefox-and-chrome-chromium-using-change-a -->
+
+  <script type="text/javascript">
+window.addEventListener("load", function() {
+    document.getElementById('folderform').addEventListener("submit", function(e) {
+	e.preventDefault(); // before the code
+
+var files = e.target.files;
+console.log(files);
+	for (let i=0; i < files.length; i++) {
+	    console.log(files[i].webkitRelativePath);
+	}
+
+    })
+});
+			  </script>
+
+  
+  <p>Here's another try, this time with a third-party library: Dropzone.js (flask-dropzone). Not functional yet.</p>
+
+  {{ dropzone.create('main.about') }}
+
+  {{ dropzone.config() }}
+
+  <p>Ideally, I want to:</p>
+
+  <ul>
+    <li>Allow drag and drop.
+    <li>Allow uploading a single zip file or a folder.</li>
+    <li>If folder, zip it up on the client side. (Maybe only if we hit a certain size threshold.)</li>
+    <li>Give the user a progress bar or some other kind of indication of progress.</li>
+  </ul>
+  
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+{{ dropzone.load_js() }}
+{% endblock %}
+
+
+
+

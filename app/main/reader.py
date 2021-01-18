@@ -7,7 +7,7 @@ from openpyxl import load_workbook
 import nltk
 import chardet
 
-from .util import is_supported_file
+from .util import is_supported_file, get_dataset_info
 
 # Split out the levels given a file path relative to a dataset's home directoy
 def parse_levels(filename, home):
@@ -247,37 +247,52 @@ def get_chunks(article, unit, fpat=None):
     assert unit in parsers, f"Bad unit: {unit}"
     yield from parsers[unit](article, fpat)
 
-def load_dir(home, level_filters, uoa, fpattern, splitter):
+def load_raw_articles(path, level_names, splitter):
+    articles = {'Filename': [], 'Text': [], 'Article ID': []}
+    articles.update({f'_level_{i}': [] for i in range(len(level_names))})
+
+    for filename in get_files(path):
+        levels = parse_levels(filename, path)
+        for aid, article in enumerate(load_file(filename, splitter)):
+            articles['Filename'].append(filename.relative_to(path))
+            articles['Text'].append(article)
+            articles['Article ID'].append(aid)
+
+            for i in range(len(level_names)):
+                val = levels[i] if i < len(levels) else pd.NA
+                articles[f'_level_{i}'].append(val)
+    return pd.DataFrame(articles)
+            
+def load_wrangled(home, level_filters, uoa, fpattern):
+    info = get_dataset_info(home)
+    splitter = info['article_regex_splitter']
+    level_names = info['level_names']
 
     # I set all these to empty lists instead of defaultdict to make
     # sure we have all the right columns.
     chunks = {'Text': [], 'Article ID': [], 'Filename': []}
-    articles = {'Filename': []}
-    chunks.update({f'_level_{i}': [] for i in range(len(level_filters))})
-    articles.update({f'_level_{i}': [] for i in range(len(level_filters))})
+    level_placeholders = [f'_level_{i}' for i in range(len(level_names))]
+    chunks.update({f'{name}': [] for name in level_placeholders})
 
-    files = list(get_files_filtered(home, level_filters))
+    cache = home / '.wrangled.pkl'
+    if cache.exists():
+        all_articles = pd.read_pickle(cache)
+    else:
+        all_articles = load_raw_articles(home, level_names, splitter)
 
-    def append_levels(d, levs):
-        for i in range(len(level_filters)):
-            val = levs[i] if i < len(levs) else pd.NA
-            d[f'_level_{i}'].append(val)
-
-    for filename, levels in get_files_filtered(home, level_filters):
-        for aid, article in enumerate(load_file(filename, splitter)):
-
-            # We don't care about the text right now, just some stats
-            #articles['text'].append(article)
-            articles['Filename'].append(filename.name)
-            append_levels(articles, levels)
+    df = all_articles
+    for lname, filt in zip(level_placeholders, level_filters):
+        # if NA, then it means any?
+        df = df[df[lname].isin(filt) | df[lname].isna()]
             
-            for chunk in get_chunks(article, uoa, fpattern):
-                chunks['Text'].append(chunk)
-                chunks['Article ID'].append(aid)
-                chunks['Filename'].append(filename.name)
-                append_levels(chunks, levels)
-
-    return pd.DataFrame(articles), pd.DataFrame(chunks)
+    for _, row in df.iterrows():
+        for chunk in get_chunks(row['Text'], uoa, fpattern):
+            for col in df.columns:
+                chunks[col].append(row[col])
+            chunks['Text'][-1] = chunk
+            
+    del all_articles['Text']
+    return all_articles, pd.DataFrame(chunks)
                 
 import unittest
 

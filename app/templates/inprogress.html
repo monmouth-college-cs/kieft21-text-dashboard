@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+
+{% block title %}In-Progress (Dataset: "{{ dataset }}"){% endblock %}
+
+{% block page_content %}
+
+<div class="container">
+  <h2>In-progress (Dataset "{{ dataset }}")</h2>
+
+  <p>This dataset is still at the {{ stage}} stage. Refresh this page
+  every few minutes. If it takes more than 30 minutes, something has
+  probably gone wrong.</p>
+
+</div>
+
+{% endblock %}
+
+
+

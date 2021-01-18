@@ -4,6 +4,19 @@
 {% set active_tab = 'settings' %}
 {% endif %}
 
+{% macro tabnav(display_name, short_name) %}
+{% if not short_name %}
+{% set short_name = display_name|lower %}
+{% endif %}
+<li class="nav-item">
+  <a class="nav-link {% if active_tab == short_name %}active{% endif %}"
+     data-toggle="tab" id="settings-tab"
+     role="tab" aria-controls="{{ short_name }}"
+     aria-selected="{% if active_tab == short_name %}true{% else %}false{% endif %}"
+     href="#{{ short_name }}">{{ display_name }}</a>
+</li>
+{% endmacro %}
+
 {% block title %}{{ dataset }}{% endblock %}
 
 {% block head %}
@@ -23,6 +36,7 @@
       <!-- "Save Results" button. -->
 
       </p>
+      {# Now a comment
     <!-- <div class="row justify-content-center"> -->
     <!-- 	<form method="post" class="form-inline"> -->
     <!-- 	  {{ save_form.hidden_tag() }} -->
@@ -30,6 +44,7 @@
     <!-- 	  {{ render_field(save_form.tag, form_type='inline', placeholder=save_form.tag.label.text, class_='form-control-sm') }} -->
     <!-- 	  {{ render_field(save_form.submit_save, form_type='inline') }} -->
     <!-- 	</form> -->
+    #}
     </div>
   </div>
 </div>
@@ -37,42 +52,11 @@
 <div class="container">
 
   <ul class="nav nav-tabs nav-justified" id="tabpane" role="tablist">
-    <li class="nav-item">
-      <a class="nav-link {% if active_tab == 'settings' %}active{% endif %}"
-	 data-toggle="tab" id="settings-tab"
-	 role="tab" aria-controls="settings"
-	 aria-selected="{% if active_tab == 'settings' %}true{% else %}false{% endif %}"
-	 href="#settings">Settings</a>
-    </li>
-    <li class="nav-item">
-      <a class="nav-link {% if active_tab == 'summary' %}active{% endif %}"
-	 data-toggle="tab" id="summary-tab"
-	 role="tab" aria-controls="summary"
-	 aria-selected="{% if active_tab == 'summary' %}true{% else %}false{% endif %}"
-	 href="#summary">Summary</a>
-    </li>
-    <li class="nav-item">
-      <a class="nav-link {% if active_tab == 'analysis' %}active{% endif %}"      
-	 data-toggle="tab" id="analysis-tab"
-	 role="tab" aria-controls="analysis"
-	 aria-selected="{% if active_tab == 'analysis' %}true{% else %}false{% endif %}"
-	 href="#analysis">Analysis Terms</a>
-    </li>
-    <li class="nav-item">
-      <a class="nav-link {% if active_tab == 'text' %}active{% endif %}"      
-	 data-toggle="tab" id="text-tab"
-	 role="tab" aria-controls="text"
-	 aria-selected="{% if active_tab == 'text' %}true{% else %}false{% endif %}"
-	 href="#text">Text</a>
-    </li>
-    <li class="nav-item">
-      <a class="nav-link {% if active_tab == 'clusters' %}active{% endif %}"            
-	 data-toggle="tab" id="clusters-tab"
-	 role="tab" aria-controls="clusters"
-	 aria-selected="{% if active_tab == 'clusters' %}true{% else %}false{% endif %}"
-	 href="#clusters">Clusters</a>
-    </li>
-
+    {{ tabnav("Settings") }}
+    {{ tabnav("Summary") }}
+    {{ tabnav("Analysis Terms", "analysis") }}
+    {{ tabnav("Text") }}
+    {{ tabnav("Clusters") }}
   </ul>
 
   <div class="tab-content pd-5" id="analysisContent">
@@ -81,7 +65,7 @@
 
       <form class="form" action="" method="post" role="form">
 	{{ analysis_form.hidden_tag() }}
-	{{ render_hidden_errors(save_form) }}
+	{{ render_hidden_errors(analysis_form) }}
 
 	<fieldset class="form-group card">
 	  <legend class="card-header text-primary">

@@ -3,6 +3,7 @@ import os, logging, sys
 from flask import Flask, render_template
 from flask_bootstrap import Bootstrap
 from flask_fontawesome import FontAwesome
+from flask_dropzone import Dropzone
 
 def create_app(test_config=None):
     app = Flask(__name__, instance_relative_config=True)
@@ -10,6 +11,7 @@ def create_app(test_config=None):
     app.config.from_mapping(
         SECRET_KEY='dev',
         DATABASE=os.path.join(app.instance_path, 'bti.sqlite'),
+        MAX_CONTENT_LENGTH=95*1024*1024, # 95 mib
     )
 
     if test_config is None: # load the instance config, if it exists, when not testing
@@ -30,6 +32,7 @@ def create_app(test_config=None):
 
     bootstrap = Bootstrap(app)
     fa = FontAwesome(app)
+    dropzone = Dropzone(app)
 
     from .main import main as main_blueprint
     app.register_blueprint(main_blueprint)

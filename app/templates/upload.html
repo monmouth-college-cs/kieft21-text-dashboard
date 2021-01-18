@@ -8,7 +8,14 @@
   <h2>New Dataset</h2>
 
   {% from "bootstrap/form.html" import render_form, render_field %}
-  {{ render_form(form) }}
+  <form class="form" action="" method="POST" enctype="multipart/form-data" role="form">
+    {{ form.hidden_tag() }}
+    {{ render_field(form.name) }}
+    {{ render_field(form.zipfile) }}
+    {{ render_field(form.submit) }}
+  </form>
+
+</div>
 
 </div>
 

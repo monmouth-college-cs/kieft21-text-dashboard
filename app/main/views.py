@@ -1,53 +1,29 @@
+import sys, json, zipfile, re, os
+from pathlib import Path
+
 from flask import render_template, session, redirect, \
     url_for, current_app, flash, Markup, request
-from . import main
-from .forms import UploadForm, make_wrangle_form, make_analysis_form, SaveForm
-from .process import process
-from .util import is_supported_file
 from werkzeug.utils import secure_filename
 from wtforms import FormField
-from pathlib import Path
-import sys, json, zipfile, re, os
 import pandas as pd
 
-def get_datasets():
-    path = (Path(current_app.instance_path) / 'datasets' / 'raw').resolve()
-    def valid(p):
-        if not p.is_dir(): return False
-        for bad in '._':
-            if str(p.name).startswith(bad): return False
-        return True
-    dirs = [dset for dset in path.iterdir() if valid(dset)]
-    raw = [str(dset.name) for dset in dirs]
-    wrangled = [str(dset.name) for dset in dirs if (dset/'.info.json').is_file()]
-    return raw, wrangled
-
-def get_dataset_home(dataset, kind='raw'):
-    return (Path(current_app.instance_path) / 'datasets' / kind / dataset).resolve()
-
-def get_output_home(dataset, tag):
-    return (Path(current_app.instance_path) / 'outputs' / dataset / tag).resolve()
-
-def get_dataset_info(dataset):
-    path = get_dataset_home(dataset) / '.info.json'
-    with open(path, 'r') as f:
-        info = json.load(f)
-    return info
+from . import main
+from .forms import UploadForm, make_wrangle_form, make_analysis_form, U2Form
+from .process import process, wrangle_dataset, make_dataset
+from .util import is_supported_file, get_datasets, get_dataset_home, get_output_home, \
+    get_dataset_info
 
 # Does not apply to error handlers!
 @main.context_processor
 def inject_datasets():
-    r,w = get_datasets()
-    return {'datasets_raw': r, 'datasets_wrangled': w}
-
-def unzip_dataset(name, path, dirname):
-    with zipfile.ZipFile(path, 'r') as f:
-        f.extractall(dirname)
+    r,p,w = get_datasets()
+    return {'datasets_raw': r, 'datasets_preprocessed': p, 'datasets_wrangled': w}
 
 @main.app_errorhandler(404)
 def page_not_found(e):
-    r,w = get_datasets()
-    return render_template('404.html', datasets_raw=r, datasets_wrangled=w), 404
+    r,p,w = get_datasets()
+    return render_template('404.html', datasets_raw=r,
+                           datasets_preprocessed=p, datasets_wrangled=w), 404
 
 @main.route('/robots.txt')
 def robots():
@@ -61,6 +37,15 @@ def about():
 @main.route('/tutorial')
 def tutorial():
     return render_template('tutorial.html')
+
+@main.route('/test', methods=['GET', 'POST'])
+def test():
+    form = U2Form()
+    if form.validate_on_submit():
+        msg = f"Got files: {form.files.data}\n\nBut directory structure is lost! Need to use Javascript and write custom WTForms class"
+        flash(msg)
+    return render_template('test.html', form=form)
+
 
 @main.route('/upload', methods=['GET', 'POST'])
 def upload():
@@ -76,10 +61,11 @@ def upload():
             return redirect(url_for('.upload'))
         
         f.save(path)
-        dirname.mkdir(exist_ok=False)
-        unzip_dataset(name, path, dirname)
-        
-        return redirect(url_for('.wrangle', dataset=name))
+        finished = make_dataset(dirname, path)
+        if finished:
+            return redirect(url_for('.wrangle', dataset=name))
+        flash("Data uploaded and preprocessing started. It may take a while.")
+        return redirect(url_for('.inprogress', dataset=name, stage='preprocess'))
     return render_template('upload.html', form=form)
 
 def get_analysis_form(dataset):
@@ -98,36 +84,62 @@ def do_explore(dataset, form):
         else:
             data[field.name] = field.data
 
-    results = process(dataset, path, data)
+    return process(dataset, path, data)
+
+def load_results(path, tag):
+    outfile = path / '.output' / tag
+    if not outfile.exists():
+        return None
+    with open(outfile, 'r') as f:
+        results = json.load(f)
     return results
 
 @main.route('/explore/<dataset>/', methods=['GET', 'POST'])
 @main.route('/explore/<dataset>/<tag>', methods=['GET', 'POST'])
-def explore(dataset, tag='__default'):
-    save_form = SaveForm()
-    analysis_form = get_analysis_form(dataset)
-    results = dict()
-    tab = None
-    if 'submit_save' in request.form:
-        if save_form.validate_on_submit():
-            new_tag = save_form.tag.data
-            # @TODO: Check for data overwrite when saving results (use
-            # checkbox to validate if user wants to)
+def explore(dataset, tag=None):
+    path = get_dataset_home(dataset)
+    if not path.exists():
+        flash(f'Dataset "{dataset}" does not exist, but you can upload a new one.')
+        return redirect(url_for('.upload'))
 
-            # @TODO: copy data from old tag dir to new tag dir, flash
-            # message saying you can come back to this url anytime.
-            
-            flash(f'Not implemented yet; simulate save {tag} -> {new_tag}')
-            return redirect(url_for('.explore', dataset=dataset, tag=new_tag))
+    preprocessed = path / '.preprocessed'
+    if not preprocessed.exists():
+        flash('This dataset is either still preprocessing or there is an error.')
+        return redirect(url_for('.inprogress', dataset=dataset, stage='preprocess'))
+
+    wrangled = path / '.info.json'
+    if not wrangled.exists():
+        flash('This dataset is either still wrangling or there is an error.')
+        return redirect(url_for('.inprogress', dataset=dataset, stage='wrangle'))
+
+    results = dict()
+    tab = 'settings'
+    analysis_form = get_analysis_form(dataset)
+
+    # if we just submitted the form, tag doesn't matter, and in fact needs to be removed!
+    if analysis_form.validate_on_submit():
+        tag = do_explore(dataset, analysis_form)
+        return redirect(url_for('.explore', dataset=dataset, tag=tag))
+
+    # Let's load the results
+    if request.method != 'POST' and tag:
+        try:
+            results = load_results(path, tag)
+        except json.decoder.JSONDecodeError as e:
+            flash("Error loading results; something went wrong. Likely a bug.", 'error')
+            return redirect(url_for('.explore', dataset=dataset))
+        if results is None:
+            flash('Output is still processing, produced an error, or has been deleted.')
+            return redirect(url_for('.inprogress', dataset=dataset, stage='explore', tag=tag))
+        if 'error' in results:
+            flash(results['error'], 'error')
+            tab = 'settings'
         else:
-            for field, msgs in save_form.errors.items():
-                flash(f'Unique name {msgs[0]}')
-    elif 'submit' in request.form and analysis_form.validate_on_submit():
-        results = do_explore(dataset, analysis_form)
-        tab = 'summary'
+            tab = 'summary'
+                        
+        
     return render_template('explore.html', dataset=dataset, tag=tag, active_tab=tab,
-                           analysis_form=analysis_form, save_form=save_form,
-                           results=results)
+                           analysis_form=analysis_form, results=results)
 
 def get_levels(dname):
     p = get_dataset_home(dname)
@@ -170,26 +182,57 @@ def get_files(dname):
             valid_size += size
     return files, human_readable_size(valid_size), human_readable_size(total_size)
 
-def do_wrangle(name, oneper, splitter, use_regex, level_names, level_vals):
-    vals = [list(x) for x in level_vals]
-    names = [name if name else f'level{i}' for i,name in enumerate(level_names)]
-    info = {'level_names': names, 'level_vals': vals}
-    if oneper:
-        info['article_regex_splitter'] = None
-    elif use_regex:
-        info['article_regex_splitter'] = splitter
-    else: # plain text splitter, treat as regex anyway
-        info['article_regex_splitter'] = re.escape(splitter)
-    path = get_dataset_home(name)
-    with open(path / '.info.json', 'w') as f:
-        json.dump(info, f)
-    path = get_output_home(name, '__default')
+                        
+@main.route('/inprogress/<dataset>/<stage>')
+@main.route('/inprogress/<dataset>/<stage>/<tag>')                        
+def inprogress(dataset, stage, tag=None):
+    path = get_dataset_home(dataset)
     if not path.exists():
-        path.mkdir(parents=True, exist_ok=False)
+        flash(f'Dataset "{dataset}" does not exist, but you can upload a new one.')
+        return redirect(url_for('.upload'))
 
+    error = path / '.error'
+    if error.exists():
+        flash(f'Sorry, there was an error during the {stage} stage.', 'error')
+        with open(error, 'r') as f:
+            flash(f.read(), 'error')
+
+    preprocessed = path / '.preprocessed'
+    if stage == 'preprocess' and preprocessed.exists():
+        flash('Preprocessing completed!')
+        return redirect(url_for('.wrangle', dataset=dataset))
+
+    if stage == 'wrangle':
+        assert preprocessed.exists()
+        wrangled = path / '.info.json'
+        if wrangled.exists():
+            return redirect(url_for('.explore', dataset=dataset))
+
+    if stage == 'explore' and tag:
+        path = get_dataset_home(dataset)
+        outfile = path / '.output' / tag
+        if outfile.exists():
+            return redirect(url_for('.explore', dataset=dataset, tag=tag))
+    
+    return render_template('inprogress.html', dataset=dataset, stage=stage)
     
 @main.route('/wrangle/<dataset>', methods=['GET', 'POST'])
 def wrangle(dataset):
+    path = get_dataset_home(dataset)
+    if not path.exists():
+        flash(f'Dataset "{dataset}" does not exist, but you can upload a new one.')
+        return redirect(url_for('.upload'))
+
+    preprocessed = path / '.preprocessed'
+    if not preprocessed.exists():
+        flash('This dataset is either still preprocessing or there is an error.')
+        return redirect(url_for('.inprogress', dataset=dataset, stage='preprocess'))
+
+    preprocessed = path / '.preprocessed'
+    if not preprocessed.exists():
+        flash('This dataset is either still preprocessing or there is an error.')
+        return redirect(url_for('.inprogress', dataset=dataset, stage='preprocess'))
+    
     files, vsize, tsize = get_files(dataset)
     levels = get_levels(dataset)
     info = {'dataset': dataset, 'files': files, 'levels': levels,
@@ -199,8 +242,12 @@ def wrangle(dataset):
     if form.validate_on_submit():
         level_names = [getattr(form, field).data for field in dir(form)
                        if field.startswith('level')]
-        do_wrangle(dataset, form.oneper.data,
-                   form.splitter.data, form.split_regex.data, level_names, levels)
-        return redirect(url_for('.explore', dataset=dataset))
+        finished = wrangle_dataset(path, form.oneper.data, form.splitter.data,
+                                   form.split_regex.data, level_names, levels)
+        if finished:
+            return redirect(url_for('.explore', dataset=dataset))
+        flash("Wrangling started. It may take a while.")
+        return redirect(url_for('.inprogress', dataset=dataset, stage='wrangle'))
+
     return render_template('wrangle.html', form=form, **info)
 
