@@ -143,7 +143,8 @@ def explore(dataset, tag=None):
 
 def get_levels(dname):
     p = get_dataset_home(dname)
-    next_level = [child for child in p.iterdir() if child.is_dir()]
+    next_level = [child for child in p.iterdir()
+                  if child.is_dir() and not child.name.startswith('.')]
     levels = [{str(child.name) for child in next_level}]
     def clean(p):
         return str(p.name).lower().replace(' ', '_')
@@ -174,9 +175,19 @@ def get_files(dname):
 
     total_size, valid_size = 0, 0
     files = []
+    # Probably should do this more carefully (recursively) to avoid .hidden directories.
     for child in path.rglob('*'):
         size = child.stat().st_size
         total_size += size
+
+        # anything in a directory that starts with '.' should be skipped
+        skip = False
+        for dirname in str(child.absolute()).split(os.sep):
+            if dirname.startswith('.'):
+                skip = True
+                break
+        if skip: continue
+        
         if is_supported_file(child):
             files.append(str(child.absolute().relative_to(path.absolute())))
             valid_size += size
