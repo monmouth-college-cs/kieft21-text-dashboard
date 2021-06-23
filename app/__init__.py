@@ -4,9 +4,32 @@ from flask import Flask, render_template
 from flask_bootstrap import Bootstrap
 from flask_fontawesome import FontAwesome
 from flask_dropzone import Dropzone
+from flask_socketio import SocketIO
+from celery import Celery
+from pathlib import Path
 
-def create_app(test_config=None):
-    app = Flask(__name__, instance_relative_config=True)
+def init_celery(celery, app):
+    celery.conf.update(app.config)
+    TaskBase = celery.Task
+    class ContextTask(TaskBase):
+        def __call__(self, *args, **kwargs):
+            with app.app_context():
+                return TaskBase.__call__(self, *args, **kwargs)
+    celery.Task = ContextTask
+
+def make_celery(app_name=__name__):
+    backend = 'redis://localhost:6379/0'
+    broker = backend.replace('0', '1')
+    return Celery(app_name, backend=backend, broker=broker,
+                  include=['app.main.process'])
+
+celery = make_celery()
+socketio = SocketIO()
+
+def create_app(app_name=__name__, test_config=None, **kwargs):
+    app = Flask(app_name, instance_relative_config=True)
+    if kwargs.get("celery"):
+        init_celery(kwargs.get("celery"), app)
     
     app.config.from_mapping(
         SECRET_KEY='dev',
@@ -36,5 +59,10 @@ def create_app(test_config=None):
 
     from .main import main as main_blueprint
     app.register_blueprint(main_blueprint)
+
+    (Path(app.instance_path) / 'outputs').mkdir(parents=True, exist_ok=True)
+
+    socketio.init_app(app, message_queue='redis://localhost:6379/0')
+
     
     return app

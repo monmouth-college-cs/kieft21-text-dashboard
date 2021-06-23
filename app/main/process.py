@@ -1,4 +1,6 @@
+import os, random, time
 import re, shlex, base64, io, json, uuid
+from requests import post
 from zipfile import ZipFile
 from pathlib import Path
 from chardet import UniversalDetector
@@ -17,6 +19,7 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.decomposition import PCA
 from sklearn.cluster import KMeans
 
+from app import celery, socketio
 from .reader import load_raw_articles, load_wrangled
 from .util import is_supported_filename
 
@@ -63,16 +66,18 @@ def make_dataset(home, zfile, wait_time=2):
     errfile = home / '.error'
     if errfile.exists():
         errfile.unlink()
-    p = Process(target=extract, args=(home, zfile))
-    p.start()
+    #p = Process(target=extract, args=(home, zfile))
+    #p.start()
+    task = extract.delay(os.fspath(home), os.fspath(zfile))
     # allow some time to finish, in which case we can take the user
     # directly to the next stage.
-    p.join(timeout=wait_time)
-    return not p.is_alive()
+    #p.join(timeout=wait_time)
+    return task
 
+@celery.task()
 def extract(home, zfile):
     try:
-        home.mkdir(parents=True, exist_ok=False)
+        os.mkdir(home)
         zf = ZipFile(zfile, 'r')
 
         for filename in zf.namelist():
@@ -102,14 +107,16 @@ def extract(home, zfile):
     except Exception as e:
         print("Preprocessing failed!")
         print(e)
-        with open(home / '.error', 'w') as f:
+        error = '.error'
+        with open(os.path.join(home, error), 'w') as f:
             f.write(str(e))
         raise
 
     print(f"Successfully preprocessed {zfile} into {home}")
+    file = '.preprocessed'
     # just touch a file to indicate we are done
-    with open(home / '.preprocessed', 'w') as f:
-        pass
+    with open(os.path.join(home, file), 'w') as f:
+        return True
     
 
 def summarize_by_level(df, levnames, title=None, histfunc='count', z=None):
@@ -330,13 +337,15 @@ def process(dname, path, form):
 
     args = uid, path, form['level_names'], level_filters, form['unit'], \
            fpat, apat, analysis_regexes, form['n_clusters']
-    p = Process(target=explore, args=args)
-    p.start()
+    #p = Process(target=explore, args=args)
+    explore.delay(uid, os.fspath(path), form['level_names'], level_filters, form['unit'], fpat, apat, analysis_regexes, form['n_clusters'])
+    #p.start()
     # allow some time to finish, in which case we can take the user
     # directly to the next stage.
-    p.join(timeout=3)
+    #p.join(timeout=3)
     return uid
-    
+
+@celery.task()    
 def explore(uid, path, level_names, level_filters, uoa,
             fpat, apat, analysis_regexes, n_clusters):
     print(f'Begin explore "{path.name}": {uid}') 
@@ -351,7 +360,8 @@ def explore(uid, path, level_names, level_filters, uoa,
         res = dict()
         res['error'] = "Nothing matched the filter terms!"
         print(res['error'])
-        outfile = path / '.output' / uid
+        output = '.output'
+        outfile = os.path.join(path, output, uid)
         with open(outfile, 'w') as f:
             json.dump(res, f)
         return
@@ -373,8 +383,8 @@ def explore(uid, path, level_names, level_filters, uoa,
 
     res = build_results(articles_df, chunks_df, matches_df, level_names,
                         uoa, analysis_regexes, n_clusters)
-
-    outfile = path / '.output' / uid
+    output = '.output'
+    outfile = os.path.join(path, output, uid)
     with open(outfile, 'w') as f:
         json.dump(res, f)
 
@@ -395,23 +405,27 @@ def wrangle_dataset(path, oneper, splitter, use_regex, level_names, level_vals):
     if errfile.exists():
         errfile.unlink()
 
-    p = Process(target=parse_articles, args=(path, names, vals, pat))
-    p.start()
+    #p = Process(target=parse_articles, args=(path, names, vals, pat))
+    #p.start()
+    parse_articles.delay(os.fspath(path), names, vals, pat)
     # allow some time to finish, in which case we can take the user
     # directly to the next stage.
-    p.join(timeout=2)
-    return not p.is_alive()
+    #p.join(timeout=2)
+    return True
 
+@celery.task()
 def parse_articles(path, level_names, level_vals, splitter):
     print(f"Wrangling started: {path}")
     try:
         regex = re.compile(splitter, flags=re.M)
         articles = load_raw_articles(path, level_names, regex)
-        articles.to_pickle(path / '.wrangled.pkl')
+        wrangled = '.wrangled.pkl'
+        articles.to_pickle(os.path.join(path, wrangled))
     except Exception as e:
         print("Wrangling failed!")
         print(e)
-        with open(path / '.error', 'w') as f:
+        error = '.error'
+        with open(os.path.join(path, error), 'w') as f:
             f.write(str(e))
         raise
 
@@ -421,7 +435,8 @@ def parse_articles(path, level_names, level_vals, splitter):
     # also indicates to the rest of the server that we are done wrangling
     info = dict(level_names=level_names, level_vals=level_vals,
                 article_regex_splitter=splitter)
-    with open(path / '.info.json', 'w') as f:
+    jsonpath = '.info.json'
+    with open(os.path.join(path, jsonpath), 'w') as f:
         json.dump(info, f)
     
 
