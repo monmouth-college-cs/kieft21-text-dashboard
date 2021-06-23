@@ -127,13 +127,13 @@ def summarize_by_level(df, levnames, title=None, histfunc='count', z=None):
 def render_plotly(fig):
     return pio.to_html(fig, include_plotlyjs=False, full_html=False)
 
-def series2cloud(data):
+def series2cloud(data, stop_words):
     text = '\n\n'.join(data)
-    cloud = WordCloud().generate(text)
+    cloud = WordCloud(stopwords = stop_words).generate(text)
     return cloud
 
-def series2cloud_img(data):
-    cloud = series2cloud(data)
+def series2cloud_img(data, stop_words):
+    cloud = series2cloud(data, stop_words)
     with io.BytesIO() as buffer:
         cloud.to_image().save(buffer, 'png')
         img = base64.b64encode(buffer.getvalue()).decode()
@@ -197,8 +197,10 @@ def build_stopwords(words, use_sci):
     return(stopwords)
 
 def build_results(articles, chunks, matches, levnames, unit,
-                  analysis_regexes, n_clusters, swords, swordssci ):
+                  analysis_regexes, n_clusters, swords, swordssci):
     res = dict()
+
+    stopwords = build_stopwords(swords, swordssci)
 
     nlev = len(levnames)
     if nlev == 0:
@@ -210,8 +212,8 @@ def build_results(articles, chunks, matches, levnames, unit,
         res['matches_summary'] = summarize_by_level(matches, levnames,
                                                     f"Count of {unit} matching analysis terms")
         
-    res['wordcloud_all_img'] = series2cloud_img(chunks['Text'])
-    res['wordcloud_analysis_img'] = series2cloud_img(matches['Text'])
+    res['wordcloud_all_img'] = series2cloud_img(chunks['Text'], stopwords)
+    res['wordcloud_analysis_img'] = series2cloud_img(matches['Text'], stopwords)
 
     res['analysis_table'] = make_table(matches, table_id='breakdown')
 
@@ -238,7 +240,6 @@ def build_results(articles, chunks, matches, levnames, unit,
     # @OTOD: Also cluster separately for each level?
     # @TODO: allow Tfidf customization: stop_words, ngrams, etc.
     # @TODO: use fancier tokenization for Tfidf (and other stuff?) (see my analysis notebook)
-    stopwords = build_stopwords(swords, swordssci)
     vec = TfidfVectorizer(min_df=0.005, max_df=0.98,
                           max_features=1000, sublinear_tf=True,
                           ngram_range=(1,2), stop_words=stopwords)
@@ -290,7 +291,7 @@ def build_results(articles, chunks, matches, levnames, unit,
         info['reps'] = list(chunks.iloc[reps[:,i], :]['Text'])
         
         idx = chunks['_cluster'] == i
-        info['cloud'] = series2cloud_img(chunks.loc[idx, 'Text'])
+        info['cloud'] = series2cloud_img(chunks.loc[idx, 'Text'], stopwords)
         res['cluster_info'].append(info)
 
     return res
