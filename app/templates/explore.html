@@ -79,6 +79,8 @@
 	<fieldset class="form-group card">
 	  <legend class="card-header text-primary">Filtering</legend>
 	  <div class="card-body">
+    {{ render_form_row([analysis_form.swords]) }}
+    {{ render_form_row([analysis_form.swordsnltk, analysis_form.swordssci]) }}
 	  {{ render_form_row([analysis_form.fterms]) }}
 	  {{ render_form_row([analysis_form.fcase, analysis_form.fregex]) }}
 	  {% for field in analysis_form.level_select %}
@@ -86,6 +88,8 @@
 	  {% endfor %}
 	  </div>
 	</fieldset>
+
+
 
 	<fieldset class="form-group card">
 	  <legend class="card-header text-primary">Analysis Breakdown</legend>

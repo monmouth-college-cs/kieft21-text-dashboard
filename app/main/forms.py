@@ -131,7 +131,11 @@ def make_analysis_form(level_names, level_vals):
     class AnalysisForm(FlaskForm):
         unit = HSelectField('Unit of Analysis', choices=unit_choices,
                             helptext="Determines how we break articles into smaller pieces, called 'chunks'.")
-        
+
+        swords = HStringField('Stop Words', helptext="These are words you can choose to keep out of analysis, to prevent extra noise from affecting reuslts.")
+        swordsnltk = HBooleanField('Use/add to NLTK stop words?', default=False, helptext="If you would prefer to use the default NLTK stop words list, or add to it, select this box.")
+        swordssci = HBooleanField('Use/add to sci-kit stop words?', default=True, helptext="If you would prefer to use the default sci kit learn stop words list, or add to it, select this box.")
+
         fterms = HStringField('Filter Terms', helptext="Only chunks containing at least one of these terms will be kept. Separate terms with a space.")
         fcase = HBooleanField('Ignore case?', default=True,
                               helptext="If checked, filtering is not case sensitive, i.e., captialized vs not capitalized doesn't amtter.")

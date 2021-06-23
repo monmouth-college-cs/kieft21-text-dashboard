@@ -10,9 +10,11 @@ import numpy as np
 import plotly.express as px
 import plotly.io as pio
 import plotly.graph_objects as go
+from scipy.sparse import data
 from wordcloud import WordCloud
 
 from nltk.sentiment.vader import SentimentIntensityAnalyzer
+from sklearn.feature_extraction import text
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.decomposition import PCA
 from sklearn.cluster import KMeans
@@ -182,8 +184,20 @@ def make_table(df, table_id=None, classes=None):
         classes = ['table']
     return df.to_html(table_id=table_id, classes=classes).replace(r'\n', '<br>')
 
+
+def build_stopwords(words, use_sci):
+    extra_words = words.split()
+    extra_words = set(extra_words)
+    if use_sci:
+        stopwords = set(text.ENGLISH_STOP_WORDS)
+        stopwords = stopwords.union(extra_words)
+    else:
+        stopwords = extra_words
+    print(stopwords)
+    return(stopwords)
+
 def build_results(articles, chunks, matches, levnames, unit,
-                  analysis_regexes, n_clusters):
+                  analysis_regexes, n_clusters, swords, swordssci ):
     res = dict()
 
     nlev = len(levnames)
@@ -224,9 +238,10 @@ def build_results(articles, chunks, matches, levnames, unit,
     # @OTOD: Also cluster separately for each level?
     # @TODO: allow Tfidf customization: stop_words, ngrams, etc.
     # @TODO: use fancier tokenization for Tfidf (and other stuff?) (see my analysis notebook)
+    stopwords = build_stopwords(swords, swordssci)
     vec = TfidfVectorizer(min_df=0.005, max_df=0.98,
                           max_features=1000, sublinear_tf=True,
-                          ngram_range=(1,2), stop_words='english')
+                          ngram_range=(1,2), stop_words=stopwords)
     X = vec.fit_transform(chunks['Text'])
     # @TODO: Allow changing PCA settings
     dimred = PCA(n_components=3, svd_solver='arpack')
@@ -329,7 +344,7 @@ def process(dname, path, form):
         errfile.unlink()
 
     args = uid, path, form['level_names'], level_filters, form['unit'], \
-           fpat, apat, analysis_regexes, form['n_clusters']
+           fpat, apat, analysis_regexes, form['n_clusters'], form['swords'], form['swordssci']
     p = Process(target=explore, args=args)
     p.start()
     # allow some time to finish, in which case we can take the user
@@ -338,7 +353,7 @@ def process(dname, path, form):
     return uid
     
 def explore(uid, path, level_names, level_filters, uoa,
-            fpat, apat, analysis_regexes, n_clusters):
+            fpat, apat, analysis_regexes, n_clusters, swords, swordssci):
     print(f'Begin explore "{path.name}": {uid}') 
     articles_df, chunks_df = load_wrangled(path, level_filters, uoa, fpat)
 
@@ -372,7 +387,7 @@ def explore(uid, path, level_names, level_filters, uoa,
     #@TODO: Save articles/chunks after filtering, plus parameters used
 
     res = build_results(articles_df, chunks_df, matches_df, level_names,
-                        uoa, analysis_regexes, n_clusters)
+                        uoa, analysis_regexes, n_clusters, swords, swordssci)
 
     outfile = path / '.output' / uid
     with open(outfile, 'w') as f:
