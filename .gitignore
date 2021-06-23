@@ -18,7 +18,7 @@ env/
 
 # Text Editors
 *.*~
-.vscode
+.vscode/
 
 # Redis
-.redis-stable
+redis-stable/

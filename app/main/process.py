@@ -1,5 +1,6 @@
 import os, random, time
 import re, shlex, base64, io, json, uuid
+from celery.app.registry import TaskRegistry
 from requests import post
 from zipfile import ZipFile
 from pathlib import Path
@@ -307,20 +308,20 @@ def build_regex(s, use_regex, case, flags=0):
 def process(dname, path, form):
     #@TODO: Check for saved articles/chunks with same parameters
     
-    level_filters = [form[key] for key in sorted(form)
-                     if re.match('level_select-level[0-9]+_filter', key)]
-    for i in range(len(level_filters)):
-        for j in range(len(level_filters[i])):
-            level_filters[i][j] = level_filters[i][j].lower()
+    #level_filters = [form[key] for key in sorted(form)
+                     #if re.match('level_select-level[0-9]+_filter', key)]
+    #for i in range(len(level_filters)):
+        #for j in range(len(level_filters[i])):
+            #level_filters[i][j] = level_filters[i][j].lower()
 
-    fpat = build_regex(form['fterms'], form['fregex'], form['fcase'])
-    apat = build_regex(form['aterms'], form['aregex'], form['acase'])
+    #fpat = build_regex(form['fterms'], form['fregex'], form['fcase'])
+    #apat = build_regex(form['aterms'], form['aregex'], form['acase'])
 
     # @TODO: We're assuming that if the user chose regex for analysis
     # terms, they did not use a space...
-    flags = re.I if form['aregex'] else 0
-    analysis_regexes = {term: re.compile(f'\\b{term}\\b', flags=flags)
-                        for term in form['aterms'].split()}
+    #flags = re.I if form['aregex'] else 0
+    #analysis_regexes = {term: re.compile(f'\\b{term}\\b', flags=flags)
+                        #for term in form['aterms'].split()}
 
     outdir = path / '.output'
     outdir.mkdir(exist_ok=True)
@@ -335,10 +336,11 @@ def process(dname, path, form):
     if errfile.exists():
         errfile.unlink()
 
-    args = uid, path, form['level_names'], level_filters, form['unit'], \
-           fpat, apat, analysis_regexes, form['n_clusters']
+    #args = uid, path, form['level_names'], level_filters, form['unit'], \
+           #fpat, apat, analysis_regexes, form['n_clusters']
     #p = Process(target=explore, args=args)
-    explore.delay(uid, os.fspath(path), form['level_names'], level_filters, form['unit'], fpat, apat, analysis_regexes, form['n_clusters'])
+    explore.delay(uid, os.fspath(path), form['level_names'], form, form['unit'], form['fterms'], form['fregex'], form['fcase'], \
+        form['aterms'], form['aregex'], form['acase'], form['n_clusters'])
     #p.start()
     # allow some time to finish, in which case we can take the user
     # directly to the next stage.
@@ -346,9 +348,20 @@ def process(dname, path, form):
     return uid
 
 @celery.task()    
-def explore(uid, path, level_names, level_filters, uoa,
-            fpat, apat, analysis_regexes, n_clusters):
-    print(f'Begin explore "{path.name}": {uid}') 
+def explore(uid, path, level_names, form, uoa,
+            fterms, fregex, fcase, aterms, aregex, acase, n_clusters):
+    print(f'Begin explore "{path}": {uid}')
+    level_filters = [form[key] for key in sorted(form)
+                     if re.match('level_select-level[0-9]+_filter', key)]
+    for i in range(len(level_filters)):
+        for j in range(len(level_filters[i])):
+            level_filters[i][j] = level_filters[i][j].lower()
+    fpat = build_regex(fterms, fregex, fcase)
+    apat = build_regex(aterms, aregex, acase)       
+    flags = re.I if form['aregex'] else 0
+    analysis_regexes = {term: re.compile(f'\\b{term}\\b', flags=flags)
+                        for term in form['aterms'].split()}
+
     articles_df, chunks_df = load_wrangled(path, level_filters, uoa, fpat)
 
     print("Finished loading data:")
@@ -388,7 +401,8 @@ def explore(uid, path, level_names, level_filters, uoa,
     with open(outfile, 'w') as f:
         json.dump(res, f)
 
-    print(f'"{path.name} results built and dumped: {uid}')
+    print(f'"{path} results built and dumped: {uid}')
+    return True
 
 def wrangle_dataset(path, oneper, splitter, use_regex, level_names, level_vals):
     vals = [list(x) for x in level_vals]

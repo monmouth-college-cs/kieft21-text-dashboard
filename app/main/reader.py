@@ -274,8 +274,9 @@ def load_wrangled(home, level_filters, uoa, fpattern):
     level_placeholders = [f'_level_{i}' for i in range(len(level_names))]
     chunks.update({f'{name}': [] for name in level_placeholders})
 
-    cache = home / '.wrangled.pkl'
-    if cache.exists():
+    wrangledpath= '.wrangled.pkl'
+    cache = os.path.join(home, wrangledpath)
+    if os.path.exists(cache):
         all_articles = pd.read_pickle(cache)
     else:
         all_articles = load_raw_articles(home, level_names, splitter)
