@@ -197,10 +197,10 @@ def build_stopwords(words, use_sci):
     return(stopwords)
 
 def build_results(articles, chunks, matches, levnames, unit,
-                  analysis_regexes, n_clusters, swords, swordssci):
+                  analysis_regexes, n_clusters, swords, defaultswords):
     res = dict()
 
-    stopwords = build_stopwords(swords, swordssci)
+    stopwords = build_stopwords(swords, defaultswords)
 
     nlev = len(levnames)
     if nlev == 0:
@@ -345,7 +345,7 @@ def process(dname, path, form):
         errfile.unlink()
 
     args = uid, path, form['level_names'], level_filters, form['unit'], \
-           fpat, apat, analysis_regexes, form['n_clusters'], form['swords'], form['swordssci']
+           fpat, apat, analysis_regexes, form['n_clusters'], form['swords'], form['defaultswords']
     p = Process(target=explore, args=args)
     p.start()
     # allow some time to finish, in which case we can take the user
@@ -354,7 +354,7 @@ def process(dname, path, form):
     return uid
     
 def explore(uid, path, level_names, level_filters, uoa,
-            fpat, apat, analysis_regexes, n_clusters, swords, swordssci):
+            fpat, apat, analysis_regexes, n_clusters, swords, defaultswords):
     print(f'Begin explore "{path.name}": {uid}') 
     articles_df, chunks_df = load_wrangled(path, level_filters, uoa, fpat)
 
@@ -388,7 +388,7 @@ def explore(uid, path, level_names, level_filters, uoa,
     #@TODO: Save articles/chunks after filtering, plus parameters used
 
     res = build_results(articles_df, chunks_df, matches_df, level_names,
-                        uoa, analysis_regexes, n_clusters, swords, swordssci)
+                        uoa, analysis_regexes, n_clusters, swords, defualtswords)
 
     outfile = path / '.output' / uid
     with open(outfile, 'w') as f:
