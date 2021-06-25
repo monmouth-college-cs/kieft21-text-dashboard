@@ -1,5 +1,5 @@
 import os, random, time
-import re, shlex, base64, io, json, uuid
+import re, shlex, base64, io, json, uuid, nltk
 from celery.app.registry import TaskRegistry
 from requests import post
 from zipfile import ZipFile
@@ -13,9 +13,11 @@ import numpy as np
 import plotly.express as px
 import plotly.io as pio
 import plotly.graph_objects as go
+from scipy.sparse import data
 from wordcloud import WordCloud
 
 from nltk.sentiment.vader import SentimentIntensityAnalyzer
+from sklearn.feature_extraction import text
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.decomposition import PCA
 from sklearn.cluster import KMeans
@@ -103,7 +105,7 @@ def extract(home, zfile):
                     binary_to_file(binary, encoding, path)
             else:
                 zf.extract(filename, home)
-            
+
             print('\t...done!')
     except Exception as e:
         print("Preprocessing failed!")
@@ -118,7 +120,7 @@ def extract(home, zfile):
     # just touch a file to indicate we are done
     with open(os.path.join(home, file), 'w') as f:
         return True
-    
+
 
 def summarize_by_level(df, levnames, title=None, histfunc='count', z=None):
     nlev = len(levnames)
@@ -133,13 +135,13 @@ def summarize_by_level(df, levnames, title=None, histfunc='count', z=None):
 def render_plotly(fig):
     return pio.to_html(fig, include_plotlyjs=False, full_html=False)
 
-def series2cloud(data):
+def series2cloud(data, stop_words):
     text = '\n\n'.join(data)
-    cloud = WordCloud().generate(text)
+    cloud = WordCloud(stopwords = stop_words).generate(text)
     return cloud
 
-def series2cloud_img(data):
-    cloud = series2cloud(data)
+def series2cloud_img(data, stop_words):
+    cloud = series2cloud(data, stop_words)
     with io.BytesIO() as buffer:
         cloud.to_image().save(buffer, 'png')
         img = base64.b64encode(buffer.getvalue()).decode()
@@ -148,7 +150,7 @@ def series2cloud_img(data):
 def make_scatter(df, x, y, color=None, hover=None, z=None):
     fig = go.Figure()
     marker = dict()
-    
+
     if z:
         marker['size'] = 6
         scatfunc = go.Scatter3d
@@ -162,7 +164,7 @@ def make_scatter(df, x, y, color=None, hover=None, z=None):
     else:
         groups = [(None, df)]
         hcols = []
-        
+
     if hover:
         hcols += hover
     else:
@@ -175,10 +177,10 @@ def make_scatter(df, x, y, color=None, hover=None, z=None):
         if hover:
             labels = [c.replace('_','').capitalize()+': '+data[c].astype(str).values for c in hcols]
             htext = ['<br>'.join(row) for row in zip(*labels)]
-        
+
         fig.add_trace(scatfunc(x=data[x], y=data[y], mode='markers', **kwarg,
                                marker=marker, hovertext=htext, hoverinfo='text'))
-        
+
 
     # @TODO: Set default zoom level or resize; 3D plots start out too
     # small/too far away
@@ -190,9 +192,30 @@ def make_table(df, table_id=None, classes=None):
         classes = ['table']
     return df.to_html(table_id=table_id, classes=classes).replace(r'\n', '<br>')
 
+
+def build_default_stopwords():
+    sciswords = set(text.ENGLISH_STOP_WORDS)
+    nltkswords = set(nltk.corpus.stopwords.words('english'))
+    default_stopwords = sciswords.union(nltkswords)
+    return sorted(default_stopwords)
+
+def build_stopwords(words, default_words, use_default):
+    extra_words = words.split()
+    extra_words = set(extra_words)
+    if use_default:
+        stopwords = set(default_words)
+        stopwords = stopwords.union(extra_words)
+    else:
+        stopwords = extra_words
+    print(stopwords)
+    return(stopwords)
+
 def build_results(articles, chunks, matches, levnames, unit,
-                  analysis_regexes, n_clusters):
+                  analysis_regexes, n_clusters, swords, defaultswords):
     res = dict()
+
+    defswords= build_default_stopwords()
+    stopwords = build_stopwords(swords, defswords, defaultswords)
 
     nlev = len(levnames)
     if nlev == 0:
@@ -203,9 +226,9 @@ def build_results(articles, chunks, matches, levnames, unit,
         res['chunks_summary'] = summarize_by_level(chunks, levnames, f"Count of {unit}")
         res['matches_summary'] = summarize_by_level(matches, levnames,
                                                     f"Count of {unit} matching analysis terms")
-        
-    res['wordcloud_all_img'] = series2cloud_img(chunks['Text'])
-    res['wordcloud_analysis_img'] = series2cloud_img(matches['Text'])
+
+    res['wordcloud_all_img'] = series2cloud_img(chunks['Text'], stopwords)
+    res['wordcloud_analysis_img'] = series2cloud_img(matches['Text'], stopwords)
 
     res['analysis_table'] = make_table(matches, table_id='breakdown')
 
@@ -234,7 +257,7 @@ def build_results(articles, chunks, matches, levnames, unit,
     # @TODO: use fancier tokenization for Tfidf (and other stuff?) (see my analysis notebook)
     vec = TfidfVectorizer(min_df=0.005, max_df=0.98,
                           max_features=1000, sublinear_tf=True,
-                          ngram_range=(1,2), stop_words='english')
+                          ngram_range=(1,2), stop_words=stopwords)
     X = vec.fit_transform(chunks['Text'])
     # @TODO: Allow changing PCA settings
     dimred = PCA(n_components=3, svd_solver='arpack')
@@ -281,9 +304,9 @@ def build_results(articles, chunks, matches, levnames, unit,
         idx = keywords[i,:]
         info['keywords'] = list(words[keywords[i,:]])
         info['reps'] = list(chunks.iloc[reps[:,i], :]['Text'])
-        
+
         idx = chunks['_cluster'] == i
-        info['cloud'] = series2cloud_img(chunks.loc[idx, 'Text'])
+        info['cloud'] = series2cloud_img(chunks.loc[idx, 'Text'], stopwords)
         res['cluster_info'].append(info)
 
     return res
@@ -307,7 +330,7 @@ def build_regex(s, use_regex, case, flags=0):
 
 def process(dname, path, form):
     #@TODO: Check for saved articles/chunks with same parameters
-    
+
     #level_filters = [form[key] for key in sorted(form)
                      #if re.match('level_select-level[0-9]+_filter', key)]
     #for i in range(len(level_filters)):
@@ -325,12 +348,12 @@ def process(dname, path, form):
 
     outdir = path / '.output'
     outdir.mkdir(exist_ok=True)
-    
+
     uid = uuid.uuid4().hex
     outfile = outdir / uid
     if outfile.exists():
         outfile.unlink()
-        
+
     # (home / '.error').unlink(missing_ok=True) # only 3.8
     errfile = path / '.error'
     if errfile.exists():
@@ -340,16 +363,16 @@ def process(dname, path, form):
            #fpat, apat, analysis_regexes, form['n_clusters']
     #p = Process(target=explore, args=args)
     explore.delay(uid, os.fspath(path), form['level_names'], form, form['unit'], form['fterms'], form['fregex'], form['fcase'], \
-        form['aterms'], form['aregex'], form['acase'], form['n_clusters'])
+        form['aterms'], form['aregex'], form['acase'], form['n_clusters'], form['swords'], form['defaultswords'])
     #p.start()
     # allow some time to finish, in which case we can take the user
     # directly to the next stage.
     #p.join(timeout=3)
     return uid
 
-@celery.task()    
+@celery.task()
 def explore(uid, path, level_names, form, uoa,
-            fterms, fregex, fcase, aterms, aregex, acase, n_clusters):
+            fterms, fregex, fcase, aterms, aregex, acase, n_clusters, swords, defaultswords):
     print(f'Begin explore "{path}": {uid}')
     level_filters = [form[key] for key in sorted(form)
                      if re.match('level_select-level[0-9]+_filter', key)]
@@ -357,7 +380,7 @@ def explore(uid, path, level_names, form, uoa,
         for j in range(len(level_filters[i])):
             level_filters[i][j] = level_filters[i][j].lower()
     fpat = build_regex(fterms, fregex, fcase)
-    apat = build_regex(aterms, aregex, acase)       
+    apat = build_regex(aterms, aregex, acase)
     flags = re.I if form['aregex'] else 0
     analysis_regexes = {term: re.compile(f'\\b{term}\\b', flags=flags)
                         for term in form['aterms'].split()}
@@ -384,7 +407,7 @@ def explore(uid, path, level_names, form, uoa,
     chunks_df.rename(columns=colmap, inplace=True)
 
     chunks_df = chunks_df.reindex([*level_names, 'Filename', 'Article ID', 'Text'], axis=1)
-    
+
     analyzer = SentimentIntensityAnalyzer()
     def score(row):
         return analyzer.polarity_scores(row['Text'])['compound']
@@ -395,7 +418,7 @@ def explore(uid, path, level_names, form, uoa,
     #@TODO: Save articles/chunks after filtering, plus parameters used
 
     res = build_results(articles_df, chunks_df, matches_df, level_names,
-                        uoa, analysis_regexes, n_clusters)
+                        uoa, analysis_regexes, n_clusters, swords, defaultswords)
     output = '.output'
     outfile = os.path.join(path, output, uid)
     with open(outfile, 'w') as f:
@@ -452,6 +475,3 @@ def parse_articles(path, level_names, level_vals, splitter):
     jsonpath = '.info.json'
     with open(os.path.join(path, jsonpath), 'w') as f:
         json.dump(info, f)
-    
-
-

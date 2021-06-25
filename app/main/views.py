@@ -9,7 +9,7 @@ import pandas as pd
 
 from . import main
 from .forms import UploadForm, make_wrangle_form, make_analysis_form, U2Form
-from .process import process, wrangle_dataset, make_dataset
+from .process import process, wrangle_dataset, make_dataset, build_default_stopwords
 from .util import is_supported_file, get_datasets, get_dataset_home, get_output_home, \
     get_dataset_info
 
@@ -139,7 +139,7 @@ def explore(dataset, tag=None):
                         
         
     return render_template('explore.html', dataset=dataset, tag=tag, active_tab=tab,
-                           analysis_form=analysis_form, results=results)
+                           analysis_form=analysis_form, results=results, swords = ", ".join(build_default_stopwords()))
 
 def get_levels(dname):
     p = get_dataset_home(dname)

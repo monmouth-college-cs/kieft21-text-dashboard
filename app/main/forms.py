@@ -6,6 +6,7 @@ from wtforms.fields import html5 as h5fields
 from wtforms.widgets import html5 as h5widgets
 from wtforms.validators import DataRequired, Regexp, NumberRange
 from flask import Markup
+from sklearn.feature_extraction import text
 import re
 
 class MyIntegerField(h5fields.IntegerField):
@@ -28,7 +29,7 @@ def Label_call(self, text=None, **kwargs):
 Label.__call__ = Label_call
 
 def make_popover(helptext, title='Help'):
-    popover = f'data-toggle="popover" title="{title}" data-content="{helptext}"'
+    popover = f'data-toggle="popover" title="{title}" data-content="{helptext}" placement="auto"'
     icon = Markup(f'<span class="fas fa-question-circle text-primary" {popover}></span>')
     return icon
 
@@ -131,7 +132,10 @@ def make_analysis_form(level_names, level_vals):
     class AnalysisForm(FlaskForm):
         unit = HSelectField('Unit of Analysis', choices=unit_choices,
                             helptext="Determines how we break articles into smaller pieces, called 'chunks'.")
-        
+
+        swords = HStringField('Stop Words', helptext="These are words you can choose to keep out of analysis, to prevent extra noise from affecting reuslts.")
+        defaultswords = HBooleanField('Use/add to the default stop words?', default=True, helptext="If you would prefer to use the default stop words list, or add to it, select this box. Click the button below to look at the default stop words.")
+
         fterms = HStringField('Filter Terms', helptext="Only chunks containing at least one of these terms will be kept. Separate terms with a space.")
         fcase = HBooleanField('Ignore case?', default=True,
                               helptext="If checked, filtering is not case sensitive, i.e., captialized vs not capitalized doesn't amtter.")
