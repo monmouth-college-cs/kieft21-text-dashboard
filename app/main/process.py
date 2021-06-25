@@ -1,4 +1,4 @@
-import re, shlex, base64, io, json, uuid
+import re, shlex, base64, io, json, uuid, nltk
 from zipfile import ZipFile
 from pathlib import Path
 from chardet import UniversalDetector
@@ -185,11 +185,17 @@ def make_table(df, table_id=None, classes=None):
     return df.to_html(table_id=table_id, classes=classes).replace(r'\n', '<br>')
 
 
-def build_stopwords(words, use_sci):
+def build_default_stopwords():
+    sciswords = set(text.ENGLISH_STOP_WORDS)
+    nltkswords = set(nltk.corpus.stopwords.words('english'))
+    default_stopwords = sciswords.union(nltkswords)
+    return sorted(default_stopwords)
+
+def build_stopwords(words, default_words, use_default):
     extra_words = words.split()
     extra_words = set(extra_words)
-    if use_sci:
-        stopwords = set(text.ENGLISH_STOP_WORDS)
+    if use_default:
+        stopwords = set(default_words)
         stopwords = stopwords.union(extra_words)
     else:
         stopwords = extra_words
@@ -200,7 +206,8 @@ def build_results(articles, chunks, matches, levnames, unit,
                   analysis_regexes, n_clusters, swords, defaultswords):
     res = dict()
 
-    stopwords = build_stopwords(swords, defaultswords)
+    defswords= build_default_stopwords()
+    stopwords = build_stopwords(swords, defswords, defaultswords)
 
     nlev = len(levnames)
     if nlev == 0:
@@ -388,7 +395,7 @@ def explore(uid, path, level_names, level_filters, uoa,
     #@TODO: Save articles/chunks after filtering, plus parameters used
 
     res = build_results(articles_df, chunks_df, matches_df, level_names,
-                        uoa, analysis_regexes, n_clusters, swords, defualtswords)
+                        uoa, analysis_regexes, n_clusters, swords, defaultswords)
 
     outfile = path / '.output' / uid
     with open(outfile, 'w') as f:
