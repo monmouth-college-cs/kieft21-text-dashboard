@@ -144,13 +144,13 @@
 	 
       <h3>Summary of all units matching filter.</h3>
 
-      <p>Counts of articles by each level:
+      <p id="articles_summary">Counts of articles by each level:
 
-	{{ results['articles_summary']|safe }}
+
 
       </p>
 
-      <p>Counts of units by each level:
+      <p id="chunks_summary">Counts of units by each level:
 	
 	{{ results['chunks_summary']|safe }}
 
@@ -168,16 +168,16 @@
 
       </p>
 
-      <p>Sentiment scores:
+      <p id="chunks_sentiment_summary">Sentiment scores:
 	{{ results['chunks_sentiment_summary']|safe }}
       </p>
 
       <p>Scatter plot visualization (TfIdf + PCA):
-	<figure class="figure text-center d-block">
-	{{ results['scatter_all_2d']|safe }}
+	<figure class="figure text-center d-block" id="scatter_all_2d">
+
 	</figure>
-	<figure class="figure text-center d-block">
-	{{ results['scatter_all_3d']|safe }}
+	<figure class="figure text-center d-block" id="scatter_all_3d">
+	
 	</figure>
       </p>
 
@@ -189,8 +189,8 @@
 	 
       <h3>Summary of all filtered units matching analysis terms.</h3>
 
-      <p>Counts of units by each level
-	{{ results['matches_summary']|safe }}
+      <p id="matches_summary">Counts of units by each level
+	
       </p>
 
       <p>Most common words and two-word phrases:
@@ -203,12 +203,12 @@
       </figure>
       </p>
 
-      <p>Sentiment scores:
-	{{ results['matches_sentiment_summary']|safe }}
+      <p id="matches_sentiment_summary">Sentiment scores:
+	
       </p>
 
-      <p>Sentiment by level:
-	{{ results['matches_sentiment_breakdown']|safe }}
+      <p id="matches_sentiment_breakdown">Sentiment by level:
+	
       </p>
 
       <!-- <p>Scatter plot visualization (TfIdf + PCA): -->
@@ -227,7 +227,7 @@
 	 class="tab-pane fade container {% if active_tab == 'text' %}active show{% endif %}">
       <h3>Text of all filtered units matching analysis terms.</h3>
 
-      {{ results['analysis_table']|safe }}
+
 
     </div>
 
@@ -244,11 +244,11 @@
 	below. </p>
       </div>
 
-      <figure class="figure text-center d-block">
-	{{ results['cluster_2d']|safe }}
+      <figure class="figure text-center d-block" id="cluster_2d">
+	
       </figure>
-      <figure class="figure text-center d-block">
-	{{ results['cluster_3d']|safe }}
+      <figure class="figure text-center d-block" id="cluster_3d">
+	
       </figure>
 
       <h4>Cluster information</h4>
@@ -294,18 +294,17 @@
 
     <script type="text/javascript">
       var socket = io.connect('http://' + document.domain + ':' + location.port);
+      var roomId = {{ uid }};
 
       socket.on( 'connect', function() {
-        socket.emit('join_room', {'roomid': roomId});
+        socket.emit('connect', roomId);
 
-        socket.emit( 'status', {
-          data: 'User Connected'
-        } ) } ) ;
+         } ) ;
 
       socket.on('results', function( msg ) {
         updateProgress(msg)
       } );
-      
+
       function updateProgress(data) {
         if ('articles_summary' in data) {
           $('#articles_summary').html(data['articles_summary'])
@@ -335,7 +334,7 @@
           $('#matches_sentiment_breakdown').html(data['matches_sentiment_breakdown'])
         }
         if ('analysis_table' in data) {
-          $('#analysis_table').html(data['analysis_table'])
+          $('#text').html(data['analysis_table'])
         }
         if ('cluster_2d' in data) {
           $('#cluster_2d').html(data['cluster_3d'])
