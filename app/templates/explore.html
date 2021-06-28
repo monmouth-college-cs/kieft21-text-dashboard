@@ -321,7 +321,8 @@
 	      });
               socket.on('status', (msg) => updateStatus(msg.status)); // server/socket status
 	  }
-
+    setupConnection();
+    
 	  {% if room and not done %} // Need to join the room right away
 	  assert(roomId);
 	  console.log(`Joining in-progress task: ${roomId}`)
@@ -330,7 +331,6 @@
 
 	  nanobar = new Nanobar({bg: '#44f', target: progress_div[0].childNodes[0]});    
 
-	  setupConnection();
 	  {% endif %}
 
       function updateProgress(data) {
