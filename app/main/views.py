@@ -131,8 +131,8 @@ def explore(dataset, tag=None):
             flash("Error loading results; something went wrong. Likely a bug.", 'error')
             return redirect(url_for('.explore', dataset=dataset))
         if results is None:
-            flash('Output is still processing, produced an error, or has been deleted.')
-            return redirect(url_for('.inprogress', dataset=dataset, stage='explore', tag=tag))
+            # flash('Output is still processing, produced an error, or has been deleted.')
+            return redirect(url_for('.explore', dataset=dataset, tag=tag))
         if 'error' in results:
             flash(results['error'], 'error')
             tab = 'settings'
@@ -266,13 +266,13 @@ def wrangle(dataset):
 
 @socketio.on('connect')
 def connect(message):
-    room = session.get('roomid')
+    room = request.sid
     join_room(room)
-    emit('status', {'status' : 'Connected!'}, to=session.get('roomid'))
+    emit('status', {'status' : 'Connected!'})
 
-@socketio.on('status')
+@socketio.on('results')
 def status(message):
-    emit('status', {'status': message['status']}, to=session.get('roomid'))
+    emit('results', message)
 
 @socketio.on('disconnect')
 def events_disconnect():

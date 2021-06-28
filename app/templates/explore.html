@@ -296,47 +296,58 @@
       var socket = io.connect('http://' + document.domain + ':' + location.port);
 
       socket.on( 'connect', function() {
+        socket.emit('join_room', {'roomid': roomId});
+
         socket.emit( 'status', {
           data: 'User Connected'
-        } ) } )
+        } ) } ) ;
 
-      socket.on( 'results', function( msg ) {
-        console.log( msg )
-
+      socket.on('results', function( msg ) {
+        updateProgress(msg)
+      } );
+      
       function updateProgress(data) {
         if ('articles_summary' in data) {
-          $('#articles_summary').text(data['articles_summary'])
+          $('#articles_summary').html(data['articles_summary'])
         }
-        if ('chunks_summary' in data) {
-          $('#chunks_summary').text(data['chunks_summary'])
-        }
-        if ('wordcloud_analysis_img' in data) {
-          $('#wordcloud_analysis').html() // how do I add a picture?
+        if ('wordcloud_all_img' in data) {
+          $('#wordcloud_all_img').html() // How do I add a picture? (TODO)
         }
         if ('chunks_sentiment_summary' in data) {
-          $('#chunks_sentiment_summary').text(data['chunks_sentiment_summary'])
+          $('#chunks_sentiment_summary').html(data['chunks_sentiment_summary'])
         }
         if ('scatter_all_2d' in data) {
           $('#scatter_all_2d').html(data['scatter_all_2d'])
         }
         if ('scatter_all_3d' in data) {
-          $('#scatter_all_3d').html(data[scatter_all_3d])
+          $('#scatter_all_3d').html(data['scatter_all_3d'])
+        }
+        if ('matches_summary' in data) {
+          $('#matches_summary').html(data['matches_summary'])
+        }
+        if ('wordcloud_analysis_img' in data) {
+          $('#wordcloud_analysis_img').html() // How do I add a picture? (TODO)
         }
         if ('matches_sentiment_summary' in data) {
-          $('#matches_sentiment_summary').text(data['matches_sentiment_summary'])
+          $('#matches_sentiment_summary').html(data['matches_sentiment_summary'])
         }
         if ('matches_sentiment_breakdown' in data) {
-          $('#matches_sentiment_breakdown').text(data['matches_sentiment_breakdown'])
+          $('#matches_sentiment_breakdown').html(data['matches_sentiment_breakdown'])
         }
-        if ('')
+        if ('analysis_table' in data) {
+          $('#analysis_table').html(data['analysis_table'])
+        }
+        if ('cluster_2d' in data) {
+          $('#cluster_2d').html(data['cluster_3d'])
+        }
+        if('cluster_3d' in data) {
+          $('#cluster_3d').html(data['cluster_3d'])
+        }
 
       }
+
     </script>
 
   </div> <!-- container -->
   
   {% endblock %}
-
-
-
-

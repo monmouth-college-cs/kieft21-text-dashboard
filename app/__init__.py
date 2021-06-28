@@ -1,3 +1,5 @@
+from gevent import monkey
+monkey.patch_all()
 import os, logging, sys
 
 from flask import Flask, render_template
