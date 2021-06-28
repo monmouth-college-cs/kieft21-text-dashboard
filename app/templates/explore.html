@@ -292,18 +292,46 @@
 
     </div>
 
-    <script type="text/javascript">
-      var socket = io.connect('http://' + document.domain + ':' + location.port);
-      var roomId = {{ uid }};
+    <script>
+      var roomId = {% if room %}"{{ room|safe }}"{% else %}undefined{% endif %};
+	  var dataset = '{{ dataset|safe }}';
+	  var url = 'http://' + document.domain + ':' + location.port;
+	  var socket = undefined; // io.connect(url);
+	  var nanobar = undefined;
+	  var progress_div = undefined;
+	  
 
-      socket.on( 'connect', function() {
-        socket.emit('connect', roomId);
+	  function setupConnection() {
+	      socket = io.connect(url);
+	      socket.on('connect', () => {
+		  updateStatus('Connected.');
+		  assert(roomId);
+		  socket.emit('join_room', {'roomid': roomId});
+	      });
+	      socket.on('connect_error', () => console.log("connect error!"));
+	      socket.on('disconnect', (reason) => updateStatus(`Got disconnected: ${reason}`))
+	      socket.on('taskprogress', (msg) => { // celery status
+		  console.log("Got task progress.");
+		  updateProgress(msg);
+	      }); 
+	      socket.on('taskdone', (data) => {
+		  console.log(`Done: ${data}`);
+		  $('#output').text(data);
+		  
+	      });
+              socket.on('status', (msg) => updateStatus(msg.status)); // server/socket status
+	  }
 
-         } ) ;
+	  {% if room and not done %} // Need to join the room right away
+	  assert(roomId);
+	  console.log(`Joining in-progress task: ${roomId}`)
+	  progress_div = $('<div class="progress"><div></div><div>0%</div><div>...</div><div>&nbsp;</div></div><hr>');
+          $('#progress').html(progress_div);
 
-      socket.on('results', function( msg ) {
-        updateProgress(msg)
-      } );
+	  nanobar = new Nanobar({bg: '#44f', target: progress_div[0].childNodes[0]});    
+
+	  setupConnection();
+	  {% endif %}
 
       function updateProgress(data) {
         if ('articles_summary' in data) {

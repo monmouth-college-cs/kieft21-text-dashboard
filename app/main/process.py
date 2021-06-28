@@ -223,17 +223,24 @@ def build_results(articles, chunks, matches, levnames, unit,
         raise NotImplementedError()
     else:
         res['articles_summary'] = summarize_by_level(articles, levnames, "Article Counts")
+        socketio.emit('taskprogress', res, to=uid)
         res['chunks_summary'] = summarize_by_level(chunks, levnames, f"Count of {unit}")
+        socketio.emit('taskprogress', res, to=uid)
         res['matches_summary'] = summarize_by_level(matches, levnames,
                                                     f"Count of {unit} matching analysis terms")
+        socketio.emit('taskprogress', res, to=uid)
 
     res['wordcloud_all_img'] = series2cloud_img(chunks['Text'], stopwords)
+    socketio.emit('taskprogress', res, to=uid)
     res['wordcloud_analysis_img'] = series2cloud_img(matches['Text'], stopwords)
+    socketio.emit('taskprogress', res, to=uid)
 
     res['analysis_table'] = make_table(matches, table_id='breakdown')
+    socketio.emit('taskprogress', res, to=uid)
 
     sent = chunks[['Sentiment Score']].describe() #.drop(index='count')
     res['chunks_sentiment_summary'] = make_table(sent)
+    socketio.emit('taskprogress', res, to=uid)
 
     sent = matches[['Sentiment Score']].describe()
     sent.rename(columns={'Sentiment Score': 'All terms'}, inplace=True)
@@ -248,7 +255,9 @@ def build_results(articles, chunks, matches, levnames, unit,
         by_level_text.append(bylev)
 
     res['matches_sentiment_summary'] = make_table(sent)
+    socketio.emit('taskprogress', res, to=uid)
     res['matches_sentiment_breakdown'] = '\n<br>\n'.join(by_level_text)
+    socketio.emit('taskprogress', res, to=uid)
 
     # cluster
     # @TODO: Also cluster by each analysis term?
@@ -270,11 +279,13 @@ def build_results(articles, chunks, matches, levnames, unit,
                        color=levnames[0], hover=levnames[1:])
     fig.update_layout(title_text='All filtered units')
     res['scatter_all_2d'] = render_plotly(fig)
+    socketio.emit('taskprogress', res, to=uid)
 
     fig = make_scatter(chunks, x='_pca_x', y='_pca_y', z='_pca_z',
                        color=levnames[0], hover=levnames[1:])
     fig.update_layout(title_text='All filtered units')
     res['scatter_all_3d'] = render_plotly(fig)
+    socketio.emit('taskprogress', res, to=uid)
 
     # @TODO: Allow customizing the clustering algorithm
     # @TODO: customize number of clusters
@@ -285,10 +296,12 @@ def build_results(articles, chunks, matches, levnames, unit,
     fig = make_scatter(chunks, x='_pca_x', y='_pca_y', color='_cluster',
                        hover=levnames)
     res['cluster_2d'] = render_plotly(fig)
+    socketio.emit('taskprogress', res, to=uid)
     fig = make_scatter(chunks, x='_pca_x', y='_pca_y', z='_pca_z',
                        color='_cluster',
                        hover=levnames)
     res['cluster_3d'] = render_plotly(fig)
+    socketio.emit('taskprogress', res, to=uid)
 
     # words important to each cluster
     keywords = np.argsort(clst.cluster_centers_, axis=1)[:,-10:]
@@ -308,7 +321,7 @@ def build_results(articles, chunks, matches, levnames, unit,
         idx = chunks['_cluster'] == i
         info['cloud'] = series2cloud_img(chunks.loc[idx, 'Text'], stopwords)
         res['cluster_info'].append(info)
-    socketio.emit('results', res, to=uid)
+    socketio.emit('taskprogress', res, to=uid)
     return res
 
 # We're just going to treat everything as a regex, so escape it if necessary.

@@ -264,19 +264,27 @@ def wrangle(dataset):
 
     return render_template('wrangle.html', form=form, **info)
 
-@socketio.on('connect')
-def connect(message):
-    room = request.sid
-    join_room(room)
-    emit('status', {'status' : 'Connected!'})
+@socketio.on('status')
+def bounce_status(message):
+    emit('status', {'status': message['status']}, to=request.sid)
 
-@socketio.on('results')
-def status(message):
-    emit('results', message)
+@socketio.on('connect')
+def connect(data=None):
+    print(f'Client connected.')
+
+@socketio.on('join_room')
+def join_task_room(data):
+    assert 'roomid' in data
+    join_room(data['roomid'])
+    socketio.emit('status', {'status': f'Joined room: {data["roomid"]}'}, to=request.sid)
+
+## @TODO: what is this?
+@socketio.on('disconnect request')
+def disconnect_request():
+    emit('status', {'status': 'Disconnected!'}, to=request.sid)
 
 @socketio.on('disconnect')
 def events_disconnect():
     # del current_app.clients[session['userid']]
     print(f"Client disconnected")
-
 
