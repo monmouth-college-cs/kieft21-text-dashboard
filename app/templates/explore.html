@@ -305,17 +305,30 @@
 
       function updateProgress(data) {
         if ('articles_summary' in data) {
-          $('#articles_summary').html(data['articles_summary'])
+          $('#articles_summary').text(data['articles_summary'])
         }
         if ('chunks_summary' in data) {
-          $('#chunks_summary').html(data['chunks_summary'])
+          $('#chunks_summary').text(data['chunks_summary'])
         }
         if ('wordcloud_analysis_img' in data) {
-          $('#wordcloud_analysis'). html()
+          $('#wordcloud_analysis').html() // how do I add a picture?
+        }
+        if ('chunks_sentiment_summary' in data) {
+          $('#chunks_sentiment_summary').text(data['chunks_sentiment_summary'])
+        }
+        if ('scatter_all_2d' in data) {
+          $('#scatter_all_2d').html(data['scatter_all_2d'])
+        }
+        if ('scatter_all_3d' in data) {
+          $('#scatter_all_3d').html(data[scatter_all_3d])
         }
         if ('matches_sentiment_summary' in data) {
-          $('#matches_sentiment_summary').html(data['matches_seuntiment_summary'])
+          $('#matches_sentiment_summary').text(data['matches_sentiment_summary'])
         }
+        if ('matches_sentiment_breakdown' in data) {
+          $('#matches_sentiment_breakdown').text(data['matches_sentiment_breakdown'])
+        }
+        if ('')
 
       }
     </script>
