@@ -211,7 +211,7 @@ def build_stopwords(words, default_words, use_default):
     return(stopwords)
 
 def build_results(articles, chunks, matches, levnames, unit,
-                  analysis_regexes, n_clusters, swords, defaultswords):
+                  analysis_regexes, n_clusters, swords, defaultswords, uid):
     res = dict()
 
     defswords= build_default_stopwords()
@@ -308,7 +308,7 @@ def build_results(articles, chunks, matches, levnames, unit,
         idx = chunks['_cluster'] == i
         info['cloud'] = series2cloud_img(chunks.loc[idx, 'Text'], stopwords)
         res['cluster_info'].append(info)
-
+    socketio.emit('results', res, to=uid)
     return res
 
 # We're just going to treat everything as a regex, so escape it if necessary.
@@ -418,7 +418,7 @@ def explore(uid, path, level_names, form, uoa,
     #@TODO: Save articles/chunks after filtering, plus parameters used
 
     res = build_results(articles_df, chunks_df, matches_df, level_names,
-                        uoa, analysis_regexes, n_clusters, swords, defaultswords)
+                        uoa, analysis_regexes, n_clusters, swords, defaultswords, uid)
     output = '.output'
     outfile = os.path.join(path, output, uid)
     with open(outfile, 'w') as f:

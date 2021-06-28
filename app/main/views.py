@@ -3,11 +3,13 @@ from pathlib import Path
 
 from flask import render_template, session, redirect, \
     url_for, current_app, flash, Markup, request
+from flask_socketio import emit, join_room, leave_room
 from werkzeug.utils import secure_filename
 from wtforms import FormField
 import pandas as pd
 
 from . import main
+from .. import socketio
 from .forms import UploadForm, make_wrangle_form, make_analysis_form, U2Form
 from .process import process, wrangle_dataset, make_dataset, build_default_stopwords
 from .util import is_supported_file, get_datasets, get_dataset_home, get_output_home, \
@@ -139,7 +141,7 @@ def explore(dataset, tag=None):
                         
         
     return render_template('explore.html', dataset=dataset, tag=tag, active_tab=tab,
-                           analysis_form=analysis_form, results=results, swords = ", ".join(build_default_stopwords()))
+                           analysis_form=analysis_form, results=None, swords = ", ".join(build_default_stopwords()))
 
 def get_levels(dname):
     p = get_dataset_home(dname)
@@ -261,4 +263,20 @@ def wrangle(dataset):
         return redirect(url_for('.inprogress', dataset=dataset, stage='wrangle'))
 
     return render_template('wrangle.html', form=form, **info)
+
+@socketio.on('connect')
+def connect(message):
+    room = session.get('roomid')
+    join_room(room)
+    emit('status', {'status' : 'Connected!'}, to=session.get('roomid'))
+
+@socketio.on('status')
+def status(message):
+    emit('status', {'status': message['status']}, to=session.get('roomid'))
+
+@socketio.on('disconnect')
+def events_disconnect():
+    # del current_app.clients[session['userid']]
+    print(f"Client disconnected")
+
 

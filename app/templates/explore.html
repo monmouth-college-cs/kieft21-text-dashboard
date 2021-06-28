@@ -22,6 +22,8 @@
 {% block head %}
 {{ super() }}
 <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+<script src="//cdnjs.cloudflare.com/ajax/libs/jquery/2.2.4/jquery.min.js"></script>
+<script src="//cdnjs.cloudflare.com/ajax/libs/socket.io/4.1.2/socket.io.min.js"></script>
 {% endblock %}
 
 {% block page_content %}
@@ -289,6 +291,34 @@
       {% endfor %}
 
     </div>
+
+    <script type="text/javascript">
+      var socket = io.connect('http://' + document.domain + ':' + location.port);
+
+      socket.on( 'connect', function() {
+        socket.emit( 'status', {
+          data: 'User Connected'
+        } ) } )
+
+      socket.on( 'results', function( msg ) {
+        console.log( msg )
+
+      function updateProgress(data) {
+        if ('articles_summary' in data) {
+          $('#articles_summary').html(data['articles_summary'])
+        }
+        if ('chunks_summary' in data) {
+          $('#chunks_summary').html(data['chunks_summary'])
+        }
+        if ('wordcloud_analysis_img' in data) {
+          $('#wordcloud_analysis'). html()
+        }
+        if ('matches_sentiment_summary' in data) {
+          $('#matches_sentiment_summary').html(data['matches_seuntiment_summary'])
+        }
+
+      }
+    </script>
 
   </div> <!-- container -->
   
