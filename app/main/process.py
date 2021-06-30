@@ -1,4 +1,4 @@
-import re, shlex, base64, io, json, uuid
+import re, shlex, base64, io, json, uuid, nltk
 from zipfile import ZipFile
 from pathlib import Path
 from chardet import UniversalDetector
@@ -10,9 +10,11 @@ import numpy as np
 import plotly.express as px
 import plotly.io as pio
 import plotly.graph_objects as go
+from scipy.sparse import data
 from wordcloud import WordCloud
 
 from nltk.sentiment.vader import SentimentIntensityAnalyzer
+from sklearn.feature_extraction import text
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.decomposition import PCA
 from sklearn.cluster import KMeans
@@ -125,13 +127,13 @@ def summarize_by_level(df, levnames, title=None, histfunc='count', z=None):
 def render_plotly(fig):
     return pio.to_html(fig, include_plotlyjs=False, full_html=False)
 
-def series2cloud(data):
+def series2cloud(data, stop_words):
     text = '\n\n'.join(data)
-    cloud = WordCloud().generate(text)
+    cloud = WordCloud(stopwords = stop_words).generate(text)
     return cloud
 
-def series2cloud_img(data):
-    cloud = series2cloud(data)
+def series2cloud_img(data, stop_words):
+    cloud = series2cloud(data, stop_words)
     with io.BytesIO() as buffer:
         cloud.to_image().save(buffer, 'png')
         img = base64.b64encode(buffer.getvalue()).decode()
@@ -182,9 +184,30 @@ def make_table(df, table_id=None, classes=None):
         classes = ['table']
     return df.to_html(table_id=table_id, classes=classes).replace(r'\n', '<br>')
 
+
+def build_default_stopwords():
+    sciswords = set(text.ENGLISH_STOP_WORDS)
+    nltkswords = set(nltk.corpus.stopwords.words('english'))
+    default_stopwords = sciswords.union(nltkswords)
+    return sorted(default_stopwords)
+
+def build_stopwords(words, default_words, use_default):
+    extra_words = words.split()
+    extra_words = set(extra_words)
+    if use_default:
+        stopwords = set(default_words)
+        stopwords = stopwords.union(extra_words)
+    else:
+        stopwords = extra_words
+    print(stopwords)
+    return(stopwords)
+
 def build_results(articles, chunks, matches, levnames, unit,
-                  analysis_regexes, n_clusters):
+                  analysis_regexes, n_clusters, swords, defaultswords):
     res = dict()
+
+    defswords= build_default_stopwords()
+    stopwords = build_stopwords(swords, defswords, defaultswords)
 
     nlev = len(levnames)
     if nlev == 0:
@@ -196,8 +219,8 @@ def build_results(articles, chunks, matches, levnames, unit,
         res['matches_summary'] = summarize_by_level(matches, levnames,
                                                     f"Count of {unit} matching analysis terms")
         
-    res['wordcloud_all_img'] = series2cloud_img(chunks['Text'])
-    res['wordcloud_analysis_img'] = series2cloud_img(matches['Text'])
+    res['wordcloud_all_img'] = series2cloud_img(chunks['Text'], stopwords)
+    res['wordcloud_analysis_img'] = series2cloud_img(matches['Text'], stopwords)
 
     res['analysis_table'] = make_table(matches, table_id='breakdown')
 
@@ -226,7 +249,7 @@ def build_results(articles, chunks, matches, levnames, unit,
     # @TODO: use fancier tokenization for Tfidf (and other stuff?) (see my analysis notebook)
     vec = TfidfVectorizer(min_df=0.005, max_df=0.98,
                           max_features=1000, sublinear_tf=True,
-                          ngram_range=(1,2), stop_words='english')
+                          ngram_range=(1,2), stop_words=stopwords)
     X = vec.fit_transform(chunks['Text'])
     # @TODO: Allow changing PCA settings
     dimred = PCA(n_components=3, svd_solver='arpack')
@@ -275,7 +298,7 @@ def build_results(articles, chunks, matches, levnames, unit,
         info['reps'] = list(chunks.iloc[reps[:,i], :]['Text'])
         
         idx = chunks['_cluster'] == i
-        info['cloud'] = series2cloud_img(chunks.loc[idx, 'Text'])
+        info['cloud'] = series2cloud_img(chunks.loc[idx, 'Text'], stopwords)
         res['cluster_info'].append(info)
 
     return res
@@ -329,7 +352,7 @@ def process(dname, path, form):
         errfile.unlink()
 
     args = uid, path, form['level_names'], level_filters, form['unit'], \
-           fpat, apat, analysis_regexes, form['n_clusters']
+           fpat, apat, analysis_regexes, form['n_clusters'], form['swords'], form['defaultswords']
     p = Process(target=explore, args=args)
     p.start()
     # allow some time to finish, in which case we can take the user
@@ -338,7 +361,7 @@ def process(dname, path, form):
     return uid
     
 def explore(uid, path, level_names, level_filters, uoa,
-            fpat, apat, analysis_regexes, n_clusters):
+            fpat, apat, analysis_regexes, n_clusters, swords, defaultswords):
     print(f'Begin explore "{path.name}": {uid}') 
     articles_df, chunks_df = load_wrangled(path, level_filters, uoa, fpat)
 
@@ -372,7 +395,7 @@ def explore(uid, path, level_names, level_filters, uoa,
     #@TODO: Save articles/chunks after filtering, plus parameters used
 
     res = build_results(articles_df, chunks_df, matches_df, level_names,
-                        uoa, analysis_regexes, n_clusters)
+                        uoa, analysis_regexes, n_clusters, swords, defaultswords)
 
     outfile = path / '.output' / uid
     with open(outfile, 'w') as f:
