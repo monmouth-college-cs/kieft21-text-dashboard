@@ -1,5 +1,5 @@
-from gevent import monkey
-monkey.patch_all()
+# from gevent import monkey
+# monkey.patch_all()
 import os, logging, sys
 
 from flask import Flask, render_template
@@ -30,6 +30,13 @@ socketio = SocketIO()
 
 def create_app(app_name=__name__, test_config=None, **kwargs):
     app = Flask(app_name, instance_relative_config=True)
+
+    # Technically whether or not there is a slash at the end is
+    # meaningful -- see the original REST paper (and discussion here:
+    # https://softwareengineering.stackexchange.com/questions/186959/trailing-slash-in-restful-api/
+    # But we don't care that much;
+    app.url_map.strict_slashes = False
+    
     if kwargs.get("celery"):
         init_celery(kwargs.get("celery"), app)
     
@@ -62,9 +69,6 @@ def create_app(app_name=__name__, test_config=None, **kwargs):
     from .main import main as main_blueprint
     app.register_blueprint(main_blueprint)
 
-    (Path(app.instance_path) / 'outputs').mkdir(parents=True, exist_ok=True)
-
     socketio.init_app(app, message_queue='redis://localhost:6379/0')
-
     
     return app

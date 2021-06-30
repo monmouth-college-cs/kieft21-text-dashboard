@@ -33,11 +33,11 @@
   <div class="container">
       <p class="lead">Choose the appropriate values in the "Settings" tab, then
 	click "Analyze" to view the results, shown in the other tabs.
-
       <!-- 	If you like the results, input a unique name and click the -->
       <!-- "Save Results" button. -->
-
       </p>
+      <p>SocketIO Status:</p>
+      <ul id="status"></ul>
       {# Now a comment
     <!-- <div class="row justify-content-center"> -->
     <!-- 	<form method="post" class="form-inline"> -->
@@ -294,44 +294,60 @@
 
     <script>
       var roomId = {% if room %}"{{ room|safe }}"{% else %}undefined{% endif %};
-	  var dataset = '{{ dataset|safe }}';
-	  var url = 'http://' + document.domain + ':' + location.port;
-	  var socket = undefined; // io.connect(url);
-	  var nanobar = undefined;
-	  var progress_div = undefined;
+      var dataset = '{{ dataset|safe }}';
+      var url = 'http://' + document.domain + ':' + location.port;
+      var socket = undefined; // io.connect(url);
+      var nanobar = undefined;
+      var progress_div = undefined;
+
+      function assert(cond, msg) { if (!cond) throw msg || "Assertion failed"; }
+
+      function getTimestamp() {
+	  const now = new Date();
+	  const year = now.getFullYear();
+	  const month = (now.getMonth()+1).toString().padStart(2, '0');
+	  const day = now.getDate().toString().padStart(2, '0');
+	  const h = now.getHours()
+	  const m = now.getMinutes();
+	  const s = now.getSeconds();
+	  return `${year}/${month}/${day} ${h}:${m}:${s}`;
+      }
+
+      function updateStatus(msg) {
+	  timestamp = getTimestamp();
+	  $('#status').append(`<li>[${timestamp}] ${msg}</li>`);
+      }
 	  
-
-	  function setupConnection() {
-	      socket = io.connect(url);
-	      socket.on('connect', () => {
-		  updateStatus('Connected.');
-		  assert(roomId);
-		  socket.emit('join_room', {'roomid': roomId});
-	      });
-	      socket.on('connect_error', () => console.log("connect error!"));
-	      socket.on('disconnect', (reason) => updateStatus(`Got disconnected: ${reason}`))
-	      socket.on('taskprogress', (msg) => { // celery status
-		  console.log("Got task progress.");
-		  updateProgress(msg);
-	      }); 
-	      socket.on('taskdone', (data) => {
-		  console.log(`Done: ${data}`);
-		  $('#output').text(data);
-		  
-	      });
-              socket.on('status', (msg) => updateStatus(msg.status)); // server/socket status
-	  }
-    setupConnection();
+      function setupConnection() {
+	  socket = io.connect(url);
+	  socket.on('connect', () => {
+	      updateStatus('Connected.');
+	      assert(roomId, "No Room ID on connect!");
+	      socket.emit('join_room', {'roomid': roomId});
+	  });
+	  socket.on('connect_error', () => console.log("connect error!"));
+	  socket.on('disconnect', (reason) => updateStatus(`Got disconnected: ${reason}`))
+	  socket.on('taskprogress', (msg) => { // celery status
+	      console.log("Got task progress.");
+	      updateProgress(msg);
+	  }); 
+	  socket.on('taskdone', (data) => {
+	      console.log(`Done: ${data}`);
+	      $('#output').text(data);
+	  });
+          socket.on('status', (msg) => updateStatus(msg.status)); // server/socket status
+      }
+      setupConnection();
     
-	  {% if room and not done %} // Need to join the room right away
-	  assert(roomId);
-	  console.log(`Joining in-progress task: ${roomId}`)
-	  progress_div = $('<div class="progress"><div></div><div>0%</div><div>...</div><div>&nbsp;</div></div><hr>');
-          $('#progress').html(progress_div);
+      {% if room and not done %} // Need to join the room right away
+      assert(roomId, "Javascript roomId variable not correctly set.");
+      console.log(`Joining in-progress task: ${roomId}`)
+      progress_div = $('<div class="progress"><div></div><div>0%</div><div>...</div><div>&nbsp;</div></div><hr>');
+      $('#progress').html(progress_div);
 
-	  nanobar = new Nanobar({bg: '#44f', target: progress_div[0].childNodes[0]});    
+      nanobar = new Nanobar({bg: '#44f', target: progress_div[0].childNodes[0]});    
 
-	  {% endif %}
+      {% endif %}
 
       function updateProgress(data) {
         if ('articles_summary' in data) {
