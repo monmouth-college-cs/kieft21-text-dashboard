@@ -1,8 +1,8 @@
-import sys, json, zipfile, re, os
+import sys, json, zipfile, re, os, uuid
 from pathlib import Path
 
 from flask import render_template, session, redirect, \
-    url_for, current_app, flash, Markup, request
+    url_for, current_app, flash, Markup, request, jsonify
 from flask_socketio import emit, join_room, leave_room
 from werkzeug.utils import secure_filename
 from wtforms import FormField
@@ -47,6 +47,22 @@ def test():
         msg = f"Got files: {form.files.data}\n\nBut directory structure is lost! Need to use Javascript and write custom WTForms class"
         flash(msg)
     return render_template('test.html', form=form)
+
+@main.route('/longtask', methods=['POST'])
+def longtask():
+    dataset = request.json['dataset']
+    roomid = str(uuid.uuid4())
+    outfile = Path(current_app.instance_path) / 'outputs' / roomid
+
+    # Let others know this is in progress
+    Path(f"{outfile}.tmp").touch()
+    
+    details = [dataset, roomid]
+
+    # Socket not connected yet, (and room not joined yet), so can't emit here.
+    # socketio.emit('status', {'status': f'Task started: {details}'}, to=roomid)
+    
+    return jsonify({'roomid': roomid}), 202
 
 
 @main.route('/upload', methods=['GET', 'POST'])
@@ -141,7 +157,7 @@ def explore(dataset, tag=None):
                         
         
     return render_template('explore.html', dataset=dataset, tag=tag, active_tab=tab,
-                           analysis_form=analysis_form, results=None, swords = ", ".join(build_default_stopwords()))
+                           analysis_form=analysis_form, swords = ", ".join(build_default_stopwords()))
 
 def get_levels(dname):
     p = get_dataset_home(dname)

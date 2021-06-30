@@ -375,7 +375,7 @@ def process(dname, path, form):
     #args = uid, path, form['level_names'], level_filters, form['unit'], \
            #fpat, apat, analysis_regexes, form['n_clusters']
     #p = Process(target=explore, args=args)
-    explore.delay(uid, os.fspath(path), form['level_names'], form, form['unit'], form['fterms'], form['fregex'], form['fcase'], \
+    task = explore.delay(uid, os.fspath(path), form['level_names'], form, form['unit'], form['fterms'], form['fregex'], form['fcase'], \
         form['aterms'], form['aregex'], form['acase'], form['n_clusters'], form['swords'], form['defaultswords'])
     #p.start()
     # allow some time to finish, in which case we can take the user
@@ -438,6 +438,7 @@ def explore(uid, path, level_names, form, uoa,
         json.dump(res, f)
 
     print(f'"{path} results built and dumped: {uid}')
+    socketio.emit('taskstatus', res, to=uid)
     return True
 
 def wrangle_dataset(path, oneper, splitter, use_regex, level_names, level_vals):
@@ -457,7 +458,7 @@ def wrangle_dataset(path, oneper, splitter, use_regex, level_names, level_vals):
 
     #p = Process(target=parse_articles, args=(path, names, vals, pat))
     #p.start()
-    parse_articles.delay(os.fspath(path), names, vals, pat)
+    task = parse_articles.delay(os.fspath(path), names, vals, pat)
     # allow some time to finish, in which case we can take the user
     # directly to the next stage.
     #p.join(timeout=2)
