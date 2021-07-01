@@ -15,6 +15,8 @@ from .process import process, wrangle_dataset, make_dataset, build_default_stopw
 from .util import is_supported_file, get_datasets, get_dataset_home, get_output_home, \
     get_dataset_info
 
+
+
 # Does not apply to error handlers!
 @main.context_processor
 def inject_datasets():
@@ -47,23 +49,6 @@ def test():
         msg = f"Got files: {form.files.data}\n\nBut directory structure is lost! Need to use Javascript and write custom WTForms class"
         flash(msg)
     return render_template('test.html', form=form)
-
-@main.route('/longtask', methods=['POST'])
-def longtask():
-    dataset = request.json['dataset']
-    roomid = str(uuid.uuid4())
-    outfile = Path(current_app.instance_path) / 'outputs' / roomid
-
-    # Let others know this is in progress
-    Path(f"{outfile}.tmp").touch()
-    
-    details = [dataset, roomid]
-
-    # Socket not connected yet, (and room not joined yet), so can't emit here.
-    # socketio.emit('status', {'status': f'Task started: {details}'}, to=roomid)
-    
-    return jsonify({'roomid': roomid}), 202
-
 
 @main.route('/upload', methods=['GET', 'POST'])
 def upload():
@@ -157,7 +142,7 @@ def explore(dataset, tag=None):
                         
         
     return render_template('explore.html', dataset=dataset, tag=tag, active_tab=tab,
-                           analysis_form=analysis_form, swords = ", ".join(build_default_stopwords()))
+                           analysis_form=analysis_form, results=None, swords = ", ".join(build_default_stopwords()))
 
 def get_levels(dname):
     p = get_dataset_home(dname)
@@ -287,16 +272,20 @@ def bounce_status(message):
 @socketio.on('connect')
 def connect(data=None):
     print(f'Client connected.')
+    emit('joinroom')
 
-@socketio.on('join_room')
-def join_task_room(data):
-    assert 'roomid' in data
-    join_room(data['roomid'])
-    socketio.emit('status', {'status': f'Joined room: {data["roomid"]}'}, to=request.sid)
+@socketio.on('join_existing_room')
+def join_existing_task_room(uid):
+    join_room(uid)
+    print(f"This is an existing client, probably refreshed, so reassigning same room {uid}")
 
-## @TODO: what is this?
-@socketio.on('disconnect request')
-def disconnect_request():
+@socketio.on('join_new_room')
+def join_task_room(data=None):
+    uid = uuid.uuid4()
+    join_room(uid)
+    emit('storeuid', (str(uid)), to=request.sid)
+    print(f"This is a new client, assigning it to room: {uid}")
+session['userid'] = str(uid)
     emit('status', {'status': 'Disconnected!'}, to=request.sid)
 
 @socketio.on('disconnect')

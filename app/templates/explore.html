@@ -108,6 +108,7 @@
     <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#stopModal">
       View default stopwords
     </button>
+    <br><br>
 	  {{ render_form_row([analysis_form.fterms]) }}
 	  {{ render_form_row([analysis_form.fcase, analysis_form.fregex]) }}
 	  {% for field in analysis_form.level_select %}
@@ -322,10 +323,20 @@
 	  socket = io.connect(url);
 	  socket.on('connect', () => {
 	      updateStatus('Connected.');
-	      assert(roomId, "No Room ID on connect!");
-	      socket.emit('join_room', {'roomid': roomId});
+        if (sessionStorage.getItem("uid") === null) {
+          socket.emit('join_new_room');
+        }
+        else {
+          socket.emit('join_existing_room', (sessionStorage.getItem("uid")));
+          updateStatus(`Reassigned to existing room: ${(sessionStorage.getItem("uid"))}`);
+
+        }
 	  });
 	  socket.on('connect_error', () => console.log("connect error!"));
+    socket.on('storeuid', (uid) => { 
+      sessionStorage.setItem("uid", uid)
+      updateStatus(`Got a new room: ${uid}`)
+    });
 	  socket.on('disconnect', (reason) => updateStatus(`Got disconnected: ${reason}`))
 	  socket.on('taskprogress', (msg) => { // celery status
 	      console.log("Got task progress.");
