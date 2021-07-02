@@ -80,8 +80,6 @@ def do_explore(dataset, form):
     data = get_dataset_info(dataset)
     uid = session.get('uid')
     print(str(uid))
-    active_tab = 'summary'
-    socketio.emit('changetab', active_tab, to=uid)
     for field in form: # assume no subfields?
         if field.name == 'submit' or field.name.startswith('csrf'): continue
         assert field.name not in data

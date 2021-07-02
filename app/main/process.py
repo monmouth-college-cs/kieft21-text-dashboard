@@ -375,6 +375,7 @@ def process(dname, path, form, uid):
     #args = uid, path, form['level_names'], level_filters, form['unit'], \
            #fpat, apat, analysis_regexes, form['n_clusters']
     #p = Process(target=explore, args=args)
+    socketio.emit('switchtab', to=uid)
     task = explore.delay(uid, os.fspath(path), form['level_names'], form, form['unit'], form['fterms'], form['fregex'], form['fcase'], \
         form['aterms'], form['aregex'], form['acase'], form['n_clusters'], form['swords'], form['defaultswords'])
     #p.start()

@@ -145,15 +145,15 @@
 	 
       <h3>Summary of all units matching filter.</h3>
 
-      <p id="articles_summary">Counts of articles by each level:
-
+      <p>Counts of articles by each level:
+      <div id="articles_summary"></div>
 
 
       </p>
 
-      <p id="chunks_summary">Counts of units by each level:
-	
-	{{ results['chunks_summary']|safe }}
+      <p>Counts of units by each level:
+      <div id="chunks_summary"></div>
+    
 
       </p>
 
@@ -161,7 +161,7 @@
 	
       <figure class="figure text-center d-block">
 	{% set cap = "Word cloud for all filtered data." %}
-	<img src="data:image/png;base64,{{ results['wordcloud_all_img']|safe }}"
+	<img id="wordcloud_all_img" src=""
 	     class="figure-img img-fluid rounded"
 	     alt={{ cap }}>
 	<figcaption class="figure-caption">{{ cap }}</figcaption>
@@ -169,8 +169,8 @@
 
       </p>
 
-      <p id="chunks_sentiment_summary">Sentiment scores:
-	{{ results['chunks_sentiment_summary']|safe }}
+      <p>Sentiment scores:
+      <div id="chunks_sentiment_summary"></div>
       </p>
 
       <p>Scatter plot visualization (TfIdf + PCA):
@@ -190,26 +190,26 @@
 	 
       <h3>Summary of all filtered units matching analysis terms.</h3>
 
-      <p id="matches_summary">Counts of units by each level
-	
+      <p>Counts of units by each level
+      <div id="matches_summary"></div>
       </p>
 
       <p>Most common words and two-word phrases:
       <figure class="figure text-center d-block">
 	{% set cap = "Word cloud for data matching analysis terms." %}
-	<img src="data:image/png;base64,{{ results['wordcloud_analysis_img']|safe }}"
+	<img id = "wordcloud_analysis_img" src=""
 	     class="figure-img img-fluid rounded"
 	     alt={{ cap }}>
 	<figcaption class="figure-caption">{{ cap }}</figcaption>
       </figure>
       </p>
 
-      <p id="matches_sentiment_summary">Sentiment scores:
-	
+      <p>Sentiment scores:
+      <div id="matches_sentiment_summary"></div>
       </p>
 
-      <p id="matches_sentiment_breakdown">Sentiment by level:
-	
+      <p>Sentiment by level:
+      <div id="matches_sentiment_breakdown"></div>
       </p>
 
       <!-- <p>Scatter plot visualization (TfIdf + PCA): -->
@@ -227,7 +227,7 @@
     <div id="text" role="tabpanel" aria-labelledby="text-tab"
 	 class="tab-pane fade container {% if active_tab == 'text' %}active show{% endif %}">
       <h3>Text of all filtered units matching analysis terms.</h3>
-
+      <div id="puttexthere"></div>
 
 
     </div>
@@ -248,6 +248,7 @@
       <figure class="figure text-center d-block" id="cluster_2d">
 	
       </figure>
+
       <figure class="figure text-center d-block" id="cluster_3d">
 	
       </figure>
@@ -255,16 +256,16 @@
       <h4>Cluster information</h4>
 
       <hr>
-      {% for cluster in results['cluster_info'] %}
+      
 
-      <h5>Cluster {{ loop.index0 }}</h5>
+      <h5>Cluster <div id="clusterid"></div></h5>
 
-      <p><strong>"Most important" words</strong>: {{ '; '.join(cluster['keywords'])|safe }}</p>
+      <p><strong>"Most important" words</strong>: <div id="important_words"></div></p>
 
       <p>Most common words and two-word phrases:
 	<figure class="figure text-center d-block">
 	{% set cap = "Word cloud for this cluster." %}
-	<img src="data:image/png;base64,{{ cluster['cloud']|safe }}"
+	<img id="cluster_cloud" src=""
 	     class="figure-img img-fluid rounded"
 	     alt={{ cap }}>
 	<figcaption class="figure-caption">{{ cap }}</figcaption>
@@ -279,17 +280,15 @@
 	<thead class="thead-dark">
 	  <tr><th scope="col">#</th><th scope="col">Text</th></tr></thead>
 	<tbody>
-	  {% for chunk in cluster['reps'] %}
+	  
 	  <tr>
-	    <th scope="row">{{ loop.index }}</th>
-	    <td>{{ chunk | replace("\n", "<br>") | safe }}</td>
-	  {% endfor %}
+	    <th id="rowindex" scope="row"></th>
+	    <td id="chunkrep"></td>
 	</tbody>
       </table>
       </div>
 
       <hr>
-      {% endfor %}
 
     </div>
 
@@ -342,7 +341,7 @@
 	      console.log("Got task progress.");
 	      updateProgress(msg);
 	  }); 
-    socket.on('changetab', (tab) => switchTab(tab))
+    socket.on('changetab', () => switchTab())
 	  socket.on('taskdone', (data) => {
 	      console.log(`Done: ${data}`);
 	      $('#output').text(data);
@@ -365,8 +364,12 @@
         if ('articles_summary' in data) {
           $('#articles_summary').html(data['articles_summary'])
         }
+        if ('chunks_summary' in data) {
+          $('#chunks_summary').html(data['chunks_summary'])
+        }
         if ('wordcloud_all_img' in data) {
-          $('#wordcloud_all_img').html() // How do I add a picture? (TODO)
+          wordcloud_all_img = String(data['wordcloud_all_img'])
+          $('#wordcloud_all_img').attr("src", ("data:image/png;base64, " + wordcloud_all_img)) // How do I add a picture? (TODO)
         }
         if ('chunks_sentiment_summary' in data) {
           $('#chunks_sentiment_summary').html(data['chunks_sentiment_summary'])
@@ -381,7 +384,8 @@
           $('#matches_summary').html(data['matches_summary'])
         }
         if ('wordcloud_analysis_img' in data) {
-          $('#wordcloud_analysis_img').html() // How do I add a picture? (TODO)
+          wordcloud_analysis_img = String(data['wordcloud_analysis_img'])
+          $('#wordcloud_analysis_img').attr("src", ("data:image/png;base64, " + wordcloud_analysis_img)) // How do I add a picture? (TODO)
         }
         if ('matches_sentiment_summary' in data) {
           $('#matches_sentiment_summary').html(data['matches_sentiment_summary'])
@@ -390,10 +394,25 @@
           $('#matches_sentiment_breakdown').html(data['matches_sentiment_breakdown'])
         }
         if ('analysis_table' in data) {
-          $('#text').html(data['analysis_table'])
+          $('#puttexthere').html(data['analysis_table'])
+        }
+        if ('cluster_info' in data){
+          for (cluster in data['cluster_info']) {
+            $('#clusterid').text(data['cluster_info'].indexOf(cluster))
+            important_words = cluster['keywords'].join("; ")
+            $('#important_words').text(important_words)
+            cluster_cloud = String(cluster['cloud'])
+            $('#cluster_cloud').attr("src", ("data:image/png;base64, " + cluster_cloud))
+            for (chunk in cluster['reps']){
+              $("#rowindex").html(cluster['reps'].indexOf(chunk))
+              chunkrep = String(chunk)
+              chunkrep = chunkrep.replace("/n", "<br>")
+              $("#chunkrep").html(chunkrep)
+            }
+          }
         }
         if ('cluster_2d' in data) {
-          $('#cluster_2d').html(data['cluster_3d'])
+          $('#cluster_2d').html(data['cluster_2d'])
         }
         if('cluster_3d' in data) {
           $('#cluster_3d').html(data['cluster_3d'])
@@ -401,7 +420,7 @@
 
       }
     
-    function switchTab(tab) {
+    function switchTab() {
       document.getElementById("summary").click();
     }
     </script>
