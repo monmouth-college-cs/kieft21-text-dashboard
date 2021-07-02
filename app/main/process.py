@@ -341,7 +341,7 @@ def build_regex(s, use_regex, case, flags=0):
     if case: rflags |= re.I
     return re.compile(pat, flags=rflags)
 
-def process(dname, path, form):
+def process(dname, path, form, uid):
     #@TODO: Check for saved articles/chunks with same parameters
 
     #level_filters = [form[key] for key in sorted(form)
@@ -362,7 +362,7 @@ def process(dname, path, form):
     outdir = path / '.output'
     outdir.mkdir(exist_ok=True)
 
-    uid = uuid.uuid4().hex
+
     outfile = outdir / uid
     if outfile.exists():
         outfile.unlink()

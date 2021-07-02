@@ -342,6 +342,7 @@
 	      console.log("Got task progress.");
 	      updateProgress(msg);
 	  }); 
+    socket.on('changetab', (tab) => switchTab(tab))
 	  socket.on('taskdone', (data) => {
 	      console.log(`Done: ${data}`);
 	      $('#output').text(data);
@@ -399,7 +400,10 @@
         }
 
       }
-
+    
+    function switchTab(tab) {
+      document.getElementById("summary").click();
+    }
     </script>
 
   </div> <!-- container -->

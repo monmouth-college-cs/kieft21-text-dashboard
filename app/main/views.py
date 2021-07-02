@@ -78,6 +78,10 @@ def get_analysis_form(dataset):
 def do_explore(dataset, form):
     path = get_dataset_home(dataset)
     data = get_dataset_info(dataset)
+    uid = session.get('uid')
+    print(str(uid))
+    active_tab = 'summary'
+    socketio.emit('changetab', active_tab, to=uid)
     for field in form: # assume no subfields?
         if field.name == 'submit' or field.name.startswith('csrf'): continue
         assert field.name not in data
@@ -87,7 +91,7 @@ def do_explore(dataset, form):
         else:
             data[field.name] = field.data
 
-    return process(dataset, path, data)
+    return process(dataset, path, data, uid)
 
 def load_results(path, tag):
     outfile = path / '.output' / tag
@@ -122,7 +126,6 @@ def explore(dataset, tag=None):
     # if we just submitted the form, tag doesn't matter, and in fact needs to be removed!
     if analysis_form.validate_on_submit():
         tag = do_explore(dataset, analysis_form)
-        return redirect(url_for('.explore', dataset=dataset, tag=tag))
 
     # Let's load the results
     if request.method != 'POST' and tag:
@@ -277,6 +280,7 @@ def connect(data=None):
 @socketio.on('join_existing_room')
 def join_existing_task_room(uid):
     join_room(uid)
+    session['uid'] = uid
     print(f"This is an existing client, probably refreshed, so reassigning same room {uid}")
 
 @socketio.on('join_new_room')
@@ -285,7 +289,7 @@ def join_task_room(data=None):
     join_room(uid)
     emit('storeuid', (str(uid)), to=request.sid)
     print(f"This is a new client, assigning it to room: {uid}")
-session['userid'] = str(uid)
+    session['uid'] = uid
     emit('status', {'status': 'Disconnected!'}, to=request.sid)
 
 @socketio.on('disconnect')
