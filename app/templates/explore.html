@@ -303,72 +303,69 @@
           }
         });
 
-      var roomId = {% if room %}"{{ room|safe }}"{% else %}undefined{% endif %};
-      var dataset = '{{ dataset|safe }}';
-      var url = 'http://' + document.domain + ':' + location.port;
-      var socket = undefined; // io.connect(url);
-      var nanobar = undefined;
-      var progress_div = undefined;
+        var roomId = {% if room %}"{{ room|safe }}"{% else %}undefined{% endif %};
+        var dataset = '{{ dataset|safe }}';
+        var url = 'http://' + document.domain + ':' + location.port;
+        var socket = undefined; // io.connect(url);
+        var progress_div = undefined;
 
-      function assert(cond, msg) { if (!cond) throw msg || "Assertion failed"; }
+        function assert(cond, msg) { if (!cond) throw msg || "Assertion failed"; }
 
-      function getTimestamp() {
-        const now = new Date();
-        const year = now.getFullYear();
-        const month = (now.getMonth() + 1).toString().padStart(2, '0');
-        const day = now.getDate().toString().padStart(2, '0');
-        const h = now.getHours()
-        const m = now.getMinutes();
-        const s = now.getSeconds();
-        return `${year}/${month}/${day} ${h}:${m}:${s}`;
-      }
+        function getTimestamp() {
+          const now = new Date();
+          const year = now.getFullYear();
+          const month = (now.getMonth() + 1).toString().padStart(2, '0');
+          const day = now.getDate().toString().padStart(2, '0');
+          const h = now.getHours()
+          const m = now.getMinutes();
+          const s = now.getSeconds();
+          return `${year}/${month}/${day} ${h}:${m}:${s}`;
+        }
 
-      function updateStatus(msg) {
-        timestamp = getTimestamp();
-        $('#status').append(`<li>[${timestamp}] ${msg}</li>`);
-      }
+        function updateStatus(msg) {
+          timestamp = getTimestamp();
+            $('#status').append(`<li>[${timestamp}] ${msg}</li>`);
+        }
 
-      function setupConnection() {
-        socket = io.connect(url);
-        socket.on('connect', () => {
-          updateStatus('Connected.');
-          assert(roomId);
-          socket.emit('join_room', { 'roomid': roomId });
+        function setupConnection() {
+          socket = io.connect(url);
+          socket.on('connect', () => {
+            updateStatus('Connected.');
+            assert(roomId);
+            socket.emit('join_room', { 'roomid': roomId });
+          });
+          socket.on('connect_error', () => console.log("connect error!"));
+          socket.on('disconnect', (reason) => updateStatus(`Got disconnected: ${reason}`))
+          socket.on('taskprogress', (msg) => { // celery status
+            console.log("Got task progress.");
+            updateProgress(msg);
+          });
+          socket.on('taskdone', (data) => {
+            console.log(`Done: ${data}`);
+            $('#output').text(data);
+
+          });
+          socket.on('status', (msg) => updateStatus(msg.status)); // server/socket status
+        }
+
+
+        {% if room and not done %} // Need to join the room right away
+        assert(roomId, "Javascript roomId variable not correctly set.");
+        console.log(`Joining in-progress task: ${roomId}`)
+        progress_div = $('<div class="progress"><div></div><div>0%</div><div>...</div><div>&nbsp;</div></div><hr>');
+        $('#progress').html(progress_div);
+
+        
+
+        setupConnection();
+        {% endif %}
+
+        $('#analysis_form').submit( (e) => {
+            start_explore();
+            e.preventDefault;
         });
-        socket.on('connect_error', () => console.log("connect error!"));
-        socket.on('disconnect', (reason) => updateStatus(`Got disconnected: ${reason}`))
-        socket.on('taskprogress', (msg) => { // celery status
-          console.log("Got task progress.");
-          updateProgress(msg);
-        });
-        socket.on('taskdone', (data) => {
-          console.log(`Done: ${data}`);
-          $('#output').text(data);
-
-        });
-        socket.on('status', (msg) => updateStatus(msg.status)); // server/socket status
-      }
-
-
-      {% if room and not done %} // Need to join the room right away
-      assert(roomId, "Javascript roomId variable not correctly set.");
-      console.log(`Joining in-progress task: ${roomId}`)
-      progress_div = $('<div class="progress"><div></div><div>0%</div><div>...</div><div>&nbsp;</div></div><hr>');
-      $('#progress').html(progress_div);
-
-      nanobar = new Nanobar({ bg: '#44f', target: progress_div[0].childNodes[0] });
-
-      setupConnection();
-      {% endif %}
-
-      $('#analysis_form').submit( (e) => {
-          start_explore();
-          e.preventDefault;
-      });
 
         function start_explore() {
-
-          nanobar = new Nanobar({ bg: '#44f', target: progress_div[0].childNodes[0] });
 
         const tmp = $('#analysis_form').serializeArray();
 	      let formdata = {};
@@ -383,7 +380,7 @@
                   contentType: "application/json; charset=utf-8",
                   dataType: "json",
                   data: JSON.stringify(data),
-		  success: function(data, status, request) {
+		    success: function(data, status, request) {
 		      roomId = data.roomid;
 		      updateStatus(`Server assigned us room: ${data.roomid}`);
 		      $('#room').html(`<a href="${dataset}/${data.roomid}">${data.roomid}</a>`);
@@ -457,7 +454,7 @@
           }
         }
       });
-      
+
     </script>
 
   </div> <!-- container -->
