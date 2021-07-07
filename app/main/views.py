@@ -134,7 +134,7 @@ def explore(dataset, tag=None):
         flash('This dataset is either still wrangling or there is an error.')
         return redirect(url_for('.inprogress', dataset=dataset, stage='wrangle'))
 
-    results = dict()
+    results = None
     tab = 'settings'
     analysis_form = get_analysis_form(dataset)
 
@@ -145,18 +145,19 @@ def explore(dataset, tag=None):
         except json.decoder.JSONDecodeError as e:
             flash("Error loading results; something went wrong. Likely a bug.", 'error')
             return redirect(url_for('.explore', dataset=dataset))
+
+        # @TODO: check whether or not the tag just does not exist, or
+        # if the computation has started but not finished.
         if results is None:
-            # flash('Output is still processing, produced an error, or has been deleted.')
-            return redirect(url_for('.explore', dataset=dataset, tag=tag))
-        if 'error' in results:
+            flash("In progress or tag does not exist.");
+        elif 'error' in results:
             flash(results['error'], 'error')
-            tab = 'settings'
         else:
             tab = 'summary'
-                        
         
     return render_template('explore.html', dataset=dataset, tag=tag, active_tab=tab,
-                           analysis_form=analysis_form, results=None, swords = ", ".join(build_default_stopwords()))
+                           analysis_form=analysis_form, results=results,
+                           swords = ", ".join(build_default_stopwords()))
 
 def get_levels(dname):
     p = get_dataset_home(dname)
