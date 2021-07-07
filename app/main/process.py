@@ -344,44 +344,18 @@ def build_regex(s, use_regex, case, flags=0):
 def process(dname, path, form, uid):
     #@TODO: Check for saved articles/chunks with same parameters
 
-    #level_filters = [form[key] for key in sorted(form)
-                     #if re.match('level_select-level[0-9]+_filter', key)]
-    #for i in range(len(level_filters)):
-        #for j in range(len(level_filters[i])):
-            #level_filters[i][j] = level_filters[i][j].lower()
-
-    #fpat = build_regex(form['fterms'], form['fregex'], form['fcase'])
-    #apat = build_regex(form['aterms'], form['aregex'], form['acase'])
-
-    # @TODO: We're assuming that if the user chose regex for analysis
-    # terms, they did not use a space...
-    #flags = re.I if form['aregex'] else 0
-    #analysis_regexes = {term: re.compile(f'\\b{term}\\b', flags=flags)
-                        #for term in form['aterms'].split()}
-
     outdir = path / '.output'
     outdir.mkdir(exist_ok=True)
-
 
     outfile = outdir / uid
     if outfile.exists():
         outfile.unlink()
 
-    # (home / '.error').unlink(missing_ok=True) # only 3.8
-    errfile = path / '.error'
-    if errfile.exists():
-        errfile.unlink()
+    (home / '.error').unlink(missing_ok=True)
 
-    #args = uid, path, form['level_names'], level_filters, form['unit'], \
-           #fpat, apat, analysis_regexes, form['n_clusters']
-    #p = Process(target=explore, args=args)
     socketio.emit('switchtab', to=uid)
     task = explore.delay(uid, os.fspath(path), form['level_names'], form, form['unit'], form['fterms'], form['fregex'], form['fcase'], \
         form['aterms'], form['aregex'], form['acase'], form['n_clusters'], form['swords'], form['defaultswords'])
-    #p.start()
-    # allow some time to finish, in which case we can take the user
-    # directly to the next stage.
-    #p.join(timeout=3)
     return uid
 
 @celery.task()
@@ -395,6 +369,9 @@ def explore(uid, path, level_names, form, uoa,
             level_filters[i][j] = level_filters[i][j].lower()
     fpat = build_regex(fterms, fregex, fcase)
     apat = build_regex(aterms, aregex, acase)
+
+    # @TODO: We're assuming that if the user chose regex for analysis
+    # terms, they did not use a space...
     flags = re.I if form['aregex'] else 0
     analysis_regexes = {term: re.compile(f'\\b{term}\\b', flags=flags)
                         for term in form['aterms'].split()}
