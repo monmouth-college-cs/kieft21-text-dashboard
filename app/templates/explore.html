@@ -328,7 +328,7 @@
             $('#status').append(`<li>[${timestamp}] ${msg}</li>`);
         }
 
-        function setupConnection() {
+        function setupConnection(roomId) {
           socket = io.connect(url);
           socket.on('connect', () => {
             updateStatus('Connected.');
@@ -337,8 +337,13 @@
           });
           socket.on('connect_error', () => console.log("connect error!"));
           socket.on('disconnect', (reason) => updateStatus(`Got disconnected: ${reason}`))
+          socket.on('switchtab', () => {
+            $("#settings").attr("class", "tabnav")
+            $("#summary").attr("class", "tabnav active")
+          });
           socket.on('taskprogress', (msg) => { // celery status
             console.log("Got task progress.");
+            updateStatus('got something')
             updateProgress(msg);
           });
           socket.on('taskdone', (data) => {
@@ -392,7 +397,7 @@
 	     	    roomId = data.roomid;
 	     	    updateStatus(`Server assigned us room: ${data.roomid}`);
 	     	    $('#room').html(`<a href="${dataset}/${data.roomid}">${data.roomid}</a>`);
-	     	    setupConnection();
+	     	    setupConnection(roomId);
                 },
                 error: function(data) {
                     console.log(`Unexpected error: ${data}`);
@@ -401,7 +406,11 @@
 	    });
 	    
 
-          function updateProgress(data) {
+         
+        }
+      });
+
+      function updateProgress(data) {
             if ('articles_summary' in data) {
               $('#articles_summary').html(data['articles_summary'])
             }
@@ -460,9 +469,6 @@
             }
 
           }
-        }
-      });
-
     </script>
 
   </div> <!-- container -->

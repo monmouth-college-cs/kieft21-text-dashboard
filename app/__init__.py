@@ -1,7 +1,6 @@
 import os, logging, sys
 
 from flask import Flask, render_template, session
-from flask_session import Session
 from flask_bootstrap import Bootstrap
 from flask_fontawesome import FontAwesome
 from flask_wtf.csrf import CSRFProtect

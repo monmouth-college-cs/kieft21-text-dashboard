@@ -116,8 +116,8 @@ def on_analysis_submit():
     return jsonify({'roomid': roomid}), 202
 
 
-@main.route('/explore/<dataset>/', methods=['GET'])
-@main.route('/explore/<dataset>/<tag>', methods=['GET'])
+@main.route('/explore/<dataset>/', methods=['GET', 'POST'])
+@main.route('/explore/<dataset>/<tag>', methods=['GET', 'POST'])
 def explore(dataset, tag=None):
     path = get_dataset_home(dataset)
     if not path.exists():
@@ -292,16 +292,4 @@ def connect(data=None):
 def join_task_room(data):
     assert 'roomid' in data
     join_room(data['roomid'])
-    socketio.emit('status', {'status': f'Joined room: {data["roomid"]}'}, to=request.sid)
-
-## @TODO: what is this?
-@socketio.on('disconnect request')
-def disconnect_request():
-    emit('status', {'status': 'Disconnected!'}, to=request.sid)
-    disconnect()
-
-@socketio.on('disconnect')
-def events_disconnect():
-    # del current_app.clients[session['userid']]
-    print(f"Client disconnected")
-
+    socketio.emit('status', {'status': f'Joined room: {data["roomid"]}'}, to=data['roomid'])
