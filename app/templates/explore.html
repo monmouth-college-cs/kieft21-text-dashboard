@@ -367,29 +367,39 @@
         function start_explore() {
             const tmp = $('#analysis_form').serializeArray();
 	    let formdata = {};
-	    $.map(tmp, (obj, i) => formdata[obj['name']] = obj['value']);
+	    $.map(tmp, (obj, i) => {
+		key = obj['name']
+		if (key in formdata) {// need to append to end
+		    // If we don't already have an array, make it into one
+		    if (!Array.isArray(formdata[key]))
+			formdata[key] = [formdata[key]]
+		    formdata[key].push(obj['value'])
+		} else {
+		    formdata[key] = obj['value'];
+		}
+	    });
 	    data = {'dataset': dataset, 'formdata': formdata};
 	    console.log(data);
 
-            // send ajax POST request to start background job
-            $.ajax({
+	    // send ajax POST request to start background job
+	    $.ajax({
                 type: 'POST',
                 url: "{{ url_for('main.on_analysis_submit') }}",
                 contentType: "application/json; charset=utf-8",
                 dataType: "json",
                 data: JSON.stringify(data),
-		success: function(data, status, request) {
-		    roomId = data.roomid;
-		    updateStatus(`Server assigned us room: ${data.roomid}`);
-		    $('#room').html(`<a href="${dataset}/${data.roomid}">${data.roomid}</a>`);
-		    setupConnection();
+	     	success: function(data, status, request) {
+	     	    roomId = data.roomid;
+	     	    updateStatus(`Server assigned us room: ${data.roomid}`);
+	     	    $('#room').html(`<a href="${dataset}/${data.roomid}">${data.roomid}</a>`);
+	     	    setupConnection();
                 },
                 error: function(data) {
                     console.log(`Unexpected error: ${data}`);
                 }
-		  
+		
 	    });
-
+	    
 
           function updateProgress(data) {
             if ('articles_summary' in data) {
