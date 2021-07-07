@@ -346,12 +346,8 @@ def process(dname, path, form, uid):
 
     outdir = path / '.output'
     outdir.mkdir(exist_ok=True)
-
-    outfile = outdir / uid
-    if outfile.exists():
-        outfile.unlink()
-
-    (home / '.error').unlink(missing_ok=True)
+    (outdir / uid).unlink(missing_ok=True)
+    (path / '.error').unlink(missing_ok=True)
 
     socketio.emit('switchtab', to=uid)
     task = explore.delay(uid, os.fspath(path), form['level_names'], form, form['unit'], form['fterms'], form['fregex'], form['fcase'], \

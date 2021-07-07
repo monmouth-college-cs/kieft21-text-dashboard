@@ -186,7 +186,7 @@ def get_sentences(text, fpat=None, smart=False):
                     yield sent
         else:
             yield from sents
-    
+
 def get_fixed_windows(text, fpat=None, csize=2):
     sents = list(get_sentences(text))
     wsize = csize*2 + 1
@@ -285,7 +285,7 @@ def load_wrangled(home, level_filters, uoa, fpattern):
     for lname, filt in zip(level_placeholders, level_filters):
         # if NA, then it means any?
         df = df[df[lname].isin(filt) | df[lname].isna()]
-            
+
     for _, row in df.iterrows():
         for chunk in get_chunks(row['Text'], uoa, fpattern):
             for col in df.columns:
