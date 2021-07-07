@@ -33,9 +33,9 @@ def create_app(app_name=__name__, test_config=None, **kwargs):
     app = Flask(app_name, instance_relative_config=True)
 
     # Technically whether or not there is a slash at the end is
-    # meaningful -- see the original REST paper (and discussion here:
+    # meaningful -- see the original REST paper (and discussion) here:
     # https://softwareengineering.stackexchange.com/questions/186959/trailing-slash-in-restful-api/
-    # But we don't care that much;
+    # But we don't care that much.
     app.url_map.strict_slashes = False
     
     if kwargs.get("celery"):

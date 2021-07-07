@@ -15,8 +15,6 @@ from .process import process, wrangle_dataset, make_dataset, build_default_stopw
 from .util import is_supported_file, get_datasets, get_dataset_home, get_output_home, \
     get_dataset_info
 
-
-
 # Does not apply to error handlers!
 @main.context_processor
 def inject_datasets():
