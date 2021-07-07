@@ -5,6 +5,7 @@ from flask import render_template, session, redirect, \
     url_for, current_app, flash, Markup, request, jsonify
 from flask_socketio import emit, join_room, leave_room
 from werkzeug.utils import secure_filename
+from werkzeug.datastructures import MultiDict as FormDataStructure
 from wtforms import FormField
 import pandas as pd
 
@@ -69,15 +70,13 @@ def upload():
         return redirect(url_for('.inprogress', dataset=name, stage='preprocess'))
     return render_template('upload.html', form=form)
 
-def get_analysis_form(dataset):
+def get_analysis_form(dataset, formdata=None):
     info = get_dataset_info(dataset)
-    return make_analysis_form(info['level_names'], info['level_vals'])
+    return make_analysis_form(info['level_names'], info['level_vals'], formdata)
 
-def do_explore(dataset, form):
+def do_explore(dataset, form, uid):
     path = get_dataset_home(dataset)
     data = get_dataset_info(dataset)
-    uid = session.get('uid')
-    print(str(uid))
     for field in form: # assume no subfields?
         if field.name == 'submit' or field.name.startswith('csrf'): continue
         assert field.name not in data
@@ -96,6 +95,26 @@ def load_results(path, tag):
     with open(outfile, 'r') as f:
         results = json.load(f)
     return results
+
+@main.route('/analysisform', methods=['POST'])
+def on_analysis_submit():
+    data = request.json
+    dataset = request.json['dataset']
+    analysis_form = get_analysis_form(dataset)
+    if 'formdata' in data:
+        form_data = FormDataStructure(data['formdata'])
+    analysis_form = get_analysis_form(dataset, formdata=form_data)
+
+    if not analysis_form.validate():
+        return jsonify(data={'form error': analysis_form.errors}), 400
+    
+    roomid = str(uuid.uuid4())
+    details = [dataset, roomid]
+
+    task = do_explore(dataset, analysis_form, roomid)
+
+    return jsonify({'roomid': roomid}), 202
+
 
 @main.route('/explore/<dataset>/', methods=['GET', 'POST'])
 @main.route('/explore/<dataset>/<tag>', methods=['GET', 'POST'])
@@ -118,10 +137,6 @@ def explore(dataset, tag=None):
     results = dict()
     tab = 'settings'
     analysis_form = get_analysis_form(dataset)
-
-    # if we just submitted the form, tag doesn't matter, and in fact needs to be removed!
-    if analysis_form.validate_on_submit():
-        tag = do_explore(dataset, analysis_form)
 
     # Let's load the results
     if request.method != 'POST' and tag:
@@ -271,22 +286,18 @@ def bounce_status(message):
 @socketio.on('connect')
 def connect(data=None):
     print(f'Client connected.')
-    emit('joinroom')
 
-@socketio.on('join_existing_room')
-def join_existing_task_room(uid):
-    join_room(uid)
-    session['uid'] = uid
-    print(f"This is an existing client, probably refreshed, so reassigning same room {uid}")
+@socketio.on('join_room')
+def join_task_room(data):
+    assert 'roomid' in data
+    join_room(data['roomid'])
+    socketio.emit('status', {'status': f'Joined room: {data["roomid"]}'}, to=request.sid)
 
-@socketio.on('join_new_room')
-def join_task_room(data=None):
-    uid = uuid.uuid4()
-    join_room(uid)
-    emit('storeuid', (str(uid)), to=request.sid)
-    print(f"This is a new client, assigning it to room: {uid}")
-    session['uid'] = uid
+## @TODO: what is this?
+@socketio.on('disconnect request')
+def disconnect_request():
     emit('status', {'status': 'Disconnected!'}, to=request.sid)
+    disconnect()
 
 @socketio.on('disconnect')
 def events_disconnect():

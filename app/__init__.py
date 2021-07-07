@@ -4,6 +4,7 @@ from flask import Flask, render_template, session
 from flask_session import Session
 from flask_bootstrap import Bootstrap
 from flask_fontawesome import FontAwesome
+from flask_wtf.csrf import CSRFProtect
 from flask_dropzone import Dropzone
 from flask_socketio import SocketIO
 from celery import Celery
@@ -26,8 +27,7 @@ def make_celery(app_name=__name__):
 
 celery = make_celery()
 socketio = SocketIO()
-SESSION_TYPE = 'redis'
-sess = Session()
+csrf = CSRFProtect()
 
 def create_app(app_name=__name__, test_config=None, **kwargs):
     app = Flask(app_name, instance_relative_config=True)
@@ -70,8 +70,8 @@ def create_app(app_name=__name__, test_config=None, **kwargs):
     from .main import main as main_blueprint
     app.register_blueprint(main_blueprint)
 
-    app.config['SESSION_TYPE'] = 'filesystem'
-    sess.init_app(app)
-    socketio.init_app(app, message_queue='redis://localhost:6379/0', manage_session=False)
+    csrf.init_app(app)
+
+    socketio.init_app(app, message_queue='redis://localhost:6379/0')
     
     return app
