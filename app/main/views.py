@@ -116,8 +116,8 @@ def on_analysis_submit():
     return jsonify({'roomid': roomid}), 202
 
 
-@main.route('/explore/<dataset>/', methods=['GET', 'POST'])
-@main.route('/explore/<dataset>/<tag>', methods=['GET', 'POST'])
+@main.route('/explore/<dataset>/', methods=['GET'])
+@main.route('/explore/<dataset>/<tag>', methods=['GET'])
 def explore(dataset, tag=None):
     path = get_dataset_home(dataset)
     if not path.exists():
@@ -138,8 +138,8 @@ def explore(dataset, tag=None):
     tab = 'settings'
     analysis_form = get_analysis_form(dataset)
 
-    # Let's load the results
-    if request.method != 'POST' and tag:
+    # Let's try to load the results
+    if tag: 
         try:
             results = load_results(path, tag)
         except json.decoder.JSONDecodeError as e:
