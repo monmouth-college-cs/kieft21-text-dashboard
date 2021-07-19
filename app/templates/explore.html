@@ -248,12 +248,12 @@
       <figure class="figure text-center d-block" id="cluster_3d">
 
       </figure>
-
+      <div class="allclusters">
       <h4>Cluster information</h4>
 
       <hr>
 
-
+      <div class="clustercontainer">
       <h5>Cluster <div id="clusterid"></div>
       </h5>
 
@@ -287,6 +287,8 @@
               <td id="chunkrep"></td>
           </tbody>
         </table>
+      </div>
+      </div>
       </div>
 
       <hr>
@@ -447,19 +449,19 @@
               $('#puttexthere').html(data['analysis_table'])
             }
             if ('cluster_info' in data) {
-              for (cluster in data['cluster_info']) {
-                $('#clusterid').text(data['cluster_info'].indexOf(cluster))
+              $.each( data['cluster_info'], function( key, cluster ) {
+                $('#clusterid').append(cluster_info.indexOf(cluster))
                 important_words = cluster['keywords'].join("; ")
-                $('#important_words').text(important_words)
+                $('#important_words').append(important_words)
                 cluster_cloud = String(cluster['cloud'])
                 $('#cluster_cloud').attr("src", ("data:image/png;base64, " + cluster_cloud))
-                for (chunk in cluster['reps']) {
-                  $("#rowindex").html(cluster['reps'].indexOf(chunk))
+                $.each(cluster['reps'], function( key, chunk) {
+                  $("#rowindex").append(cluster['reps'].indexOf(chunk))
                   chunkrep = String(chunk)
                   chunkrep = chunkrep.replace("/n", "<br>")
-                  $("#chunkrep").html(chunkrep)
-                }
-              }
+                  $("#chunkrep").append(chunkrep)
+                })
+              })
             }
             if ('cluster_2d' in data) {
               $('#cluster_2d').html(data['cluster_2d'])
