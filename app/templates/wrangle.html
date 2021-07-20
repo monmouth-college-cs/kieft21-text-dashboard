@@ -12,6 +12,10 @@
       var checked = document.getElementById('oneper').checked
       document.getElementById('splitter').disabled = checked
       document.getElementById('split_regex').disabled = checked
+      document.getElementById('split_start').disabled = checked
+      document.getElementById('start_regex').disabled = checked
+      document.getElementById('split_end').disabled = checked
+      document.getElementById('end_regex').disabled = checked
     }
   </script>
   {{ render_form(form) }}

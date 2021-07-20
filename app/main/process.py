@@ -415,7 +415,7 @@ def explore(uid, path, level_names, form, uoa,
     socketio.emit('taskstatus', res, to=uid)
     return True
 
-def wrangle_dataset(path, oneper, splitter, use_regex, level_names, level_vals):
+def wrangle_dataset(path, oneper, splitter, use_regex, level_names, level_vals, start, end):
     vals = [list(x) for x in level_vals]
     names = [name if name else f'level{i}' for i,name in enumerate(level_names)]
     if oneper:
@@ -439,11 +439,13 @@ def wrangle_dataset(path, oneper, splitter, use_regex, level_names, level_vals):
     return True
 
 @celery.task()
-def parse_articles(path, level_names, level_vals, splitter):
+def parse_articles(path, level_names, level_vals, splitter, start, end):
     print(f"Wrangling started: {path}")
     try:
         regex = re.compile(splitter, flags=re.M)
-        articles = load_raw_articles(path, level_names, regex)
+        start_regex = re.compile(start, flags=re.M)
+        end_regex = re.compile(end, flags=re.M)
+        articles = load_raw_articles(path, level_names, regex, start_regex, end_regex)
         wrangled = '.wrangled.pkl'
         articles.to_pickle(os.path.join(path, wrangled))
     except Exception as e:
@@ -459,7 +461,7 @@ def parse_articles(path, level_names, level_vals, splitter):
     # save some info for later (no longer used since we pickled)
     # also indicates to the rest of the server that we are done wrangling
     info = dict(level_names=level_names, level_vals=level_vals,
-                article_regex_splitter=splitter)
+                article_regex_splitter=splitter, start_regex_splitter=start, end_regex_splitter=end)
     jsonpath = '.info.json'
     with open(os.path.join(path, jsonpath), 'w') as f:
         json.dump(info, f)
