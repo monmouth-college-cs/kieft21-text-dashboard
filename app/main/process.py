@@ -1,4 +1,7 @@
+import os, random, time
 import re, shlex, base64, io, json, uuid, nltk
+from celery.app.registry import TaskRegistry
+from requests import post
 from zipfile import ZipFile
 from pathlib import Path
 from chardet import UniversalDetector
@@ -19,6 +22,7 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.decomposition import PCA
 from sklearn.cluster import KMeans
 
+from app import celery, socketio
 from .reader import load_raw_articles, load_wrangled
 from .util import is_supported_filename
 
@@ -65,16 +69,18 @@ def make_dataset(home, zfile, wait_time=2):
     errfile = home / '.error'
     if errfile.exists():
         errfile.unlink()
-    p = Process(target=extract, args=(home, zfile))
-    p.start()
+    #p = Process(target=extract, args=(home, zfile))
+    #p.start()
+    task = extract.delay(os.fspath(home), os.fspath(zfile))
     # allow some time to finish, in which case we can take the user
     # directly to the next stage.
-    p.join(timeout=wait_time)
-    return not p.is_alive()
+    #p.join(timeout=wait_time)
+    return task
 
+@celery.task()
 def extract(home, zfile):
     try:
-        home.mkdir(parents=True, exist_ok=False)
+        os.mkdir(home)
         zf = ZipFile(zfile, 'r')
 
         for filename in zf.namelist():
@@ -99,20 +105,22 @@ def extract(home, zfile):
                     binary_to_file(binary, encoding, path)
             else:
                 zf.extract(filename, home)
-            
+
             print('\t...done!')
     except Exception as e:
         print("Preprocessing failed!")
         print(e)
-        with open(home / '.error', 'w') as f:
+        error = '.error'
+        with open(os.path.join(home, error), 'w') as f:
             f.write(str(e))
         raise
 
     print(f"Successfully preprocessed {zfile} into {home}")
+    file = '.preprocessed'
     # just touch a file to indicate we are done
-    with open(home / '.preprocessed', 'w') as f:
-        pass
-    
+    with open(os.path.join(home, file), 'w') as f:
+        return True
+
 
 def summarize_by_level(df, levnames, title=None, histfunc='count', z=None):
     nlev = len(levnames)
@@ -142,7 +150,7 @@ def series2cloud_img(data, stop_words):
 def make_scatter(df, x, y, color=None, hover=None, z=None):
     fig = go.Figure()
     marker = dict()
-    
+
     if z:
         marker['size'] = 6
         scatfunc = go.Scatter3d
@@ -156,7 +164,7 @@ def make_scatter(df, x, y, color=None, hover=None, z=None):
     else:
         groups = [(None, df)]
         hcols = []
-        
+
     if hover:
         hcols += hover
     else:
@@ -169,10 +177,10 @@ def make_scatter(df, x, y, color=None, hover=None, z=None):
         if hover:
             labels = [c.replace('_','').capitalize()+': '+data[c].astype(str).values for c in hcols]
             htext = ['<br>'.join(row) for row in zip(*labels)]
-        
+
         fig.add_trace(scatfunc(x=data[x], y=data[y], mode='markers', **kwarg,
                                marker=marker, hovertext=htext, hoverinfo='text'))
-        
+
 
     # @TODO: Set default zoom level or resize; 3D plots start out too
     # small/too far away
@@ -203,7 +211,7 @@ def build_stopwords(words, default_words, use_default):
     return(stopwords)
 
 def build_results(articles, chunks, matches, levnames, unit,
-                  analysis_regexes, n_clusters, swords, defaultswords):
+                  analysis_regexes, n_clusters, swords, defaultswords, uid):
     res = dict()
 
     defswords= build_default_stopwords()
@@ -215,17 +223,24 @@ def build_results(articles, chunks, matches, levnames, unit,
         raise NotImplementedError()
     else:
         res['articles_summary'] = summarize_by_level(articles, levnames, "Article Counts")
+        socketio.emit('taskprogress', res, to=uid)
         res['chunks_summary'] = summarize_by_level(chunks, levnames, f"Count of {unit}")
+        socketio.emit('taskprogress', res, to=uid)
         res['matches_summary'] = summarize_by_level(matches, levnames,
                                                     f"Count of {unit} matching analysis terms")
-        
+        socketio.emit('taskprogress', res, to=uid)
+
     res['wordcloud_all_img'] = series2cloud_img(chunks['Text'], stopwords)
+    socketio.emit('taskprogress', res, to=uid)
     res['wordcloud_analysis_img'] = series2cloud_img(matches['Text'], stopwords)
+    socketio.emit('taskprogress', res, to=uid)
 
     res['analysis_table'] = make_table(matches, table_id='breakdown')
+    socketio.emit('taskprogress', res, to=uid)
 
     sent = chunks[['Sentiment Score']].describe() #.drop(index='count')
     res['chunks_sentiment_summary'] = make_table(sent)
+    socketio.emit('taskprogress', res, to=uid)
 
     sent = matches[['Sentiment Score']].describe()
     sent.rename(columns={'Sentiment Score': 'All terms'}, inplace=True)
@@ -240,7 +255,9 @@ def build_results(articles, chunks, matches, levnames, unit,
         by_level_text.append(bylev)
 
     res['matches_sentiment_summary'] = make_table(sent)
+    socketio.emit('taskprogress', res, to=uid)
     res['matches_sentiment_breakdown'] = '\n<br>\n'.join(by_level_text)
+    socketio.emit('taskprogress', res, to=uid)
 
     # cluster
     # @TODO: Also cluster by each analysis term?
@@ -262,11 +279,13 @@ def build_results(articles, chunks, matches, levnames, unit,
                        color=levnames[0], hover=levnames[1:])
     fig.update_layout(title_text='All filtered units')
     res['scatter_all_2d'] = render_plotly(fig)
+    socketio.emit('taskprogress', res, to=uid)
 
     fig = make_scatter(chunks, x='_pca_x', y='_pca_y', z='_pca_z',
                        color=levnames[0], hover=levnames[1:])
     fig.update_layout(title_text='All filtered units')
     res['scatter_all_3d'] = render_plotly(fig)
+    socketio.emit('taskprogress', res, to=uid)
 
     # @TODO: Allow customizing the clustering algorithm
     # @TODO: customize number of clusters
@@ -277,10 +296,12 @@ def build_results(articles, chunks, matches, levnames, unit,
     fig = make_scatter(chunks, x='_pca_x', y='_pca_y', color='_cluster',
                        hover=levnames)
     res['cluster_2d'] = render_plotly(fig)
+    socketio.emit('taskprogress', res, to=uid)
     fig = make_scatter(chunks, x='_pca_x', y='_pca_y', z='_pca_z',
                        color='_cluster',
                        hover=levnames)
     res['cluster_3d'] = render_plotly(fig)
+    socketio.emit('taskprogress', res, to=uid)
 
     # words important to each cluster
     keywords = np.argsort(clst.cluster_centers_, axis=1)[:,-10:]
@@ -296,11 +317,11 @@ def build_results(articles, chunks, matches, levnames, unit,
         idx = keywords[i,:]
         info['keywords'] = list(words[keywords[i,:]])
         info['reps'] = list(chunks.iloc[reps[:,i], :]['Text'])
-        
+
         idx = chunks['_cluster'] == i
         info['cloud'] = series2cloud_img(chunks.loc[idx, 'Text'], stopwords)
         res['cluster_info'].append(info)
-
+    socketio.emit('taskprogress', res, to=uid)
     return res
 
 # We're just going to treat everything as a regex, so escape it if necessary.
@@ -320,17 +341,30 @@ def build_regex(s, use_regex, case, flags=0):
     if case: rflags |= re.I
     return re.compile(pat, flags=rflags)
 
-def process(dname, path, form):
+def process(dname, path, form, uid):
     #@TODO: Check for saved articles/chunks with same parameters
-    
+
+    outdir = path / '.output'
+    outdir.mkdir(exist_ok=True)
+    (outdir / uid).unlink(missing_ok=True)
+    (path / '.error').unlink(missing_ok=True)
+
+    socketio.emit('switchtab', to=uid)
+    task = explore.delay(uid, os.fspath(path), form['level_names'], form, form['unit'], form['fterms'], form['fregex'], form['fcase'], \
+        form['aterms'], form['aregex'], form['acase'], form['n_clusters'], form['swords'], form['defaultswords'])
+    return uid
+
+@celery.task()
+def explore(uid, path, level_names, form, uoa,
+            fterms, fregex, fcase, aterms, aregex, acase, n_clusters, swords, defaultswords):
+    print(f'Begin explore "{path}": {uid}')
     level_filters = [form[key] for key in sorted(form)
                      if re.match('level_select-level[0-9]+_filter', key)]
     for i in range(len(level_filters)):
         for j in range(len(level_filters[i])):
             level_filters[i][j] = level_filters[i][j].lower()
-
-    fpat = build_regex(form['fterms'], form['fregex'], form['fcase'])
-    apat = build_regex(form['aterms'], form['aregex'], form['acase'])
+    fpat = build_regex(fterms, fregex, fcase)
+    apat = build_regex(aterms, aregex, acase)
 
     # @TODO: We're assuming that if the user chose regex for analysis
     # terms, they did not use a space...
@@ -338,31 +372,6 @@ def process(dname, path, form):
     analysis_regexes = {term: re.compile(f'\\b{term}\\b', flags=flags)
                         for term in form['aterms'].split()}
 
-    outdir = path / '.output'
-    outdir.mkdir(exist_ok=True)
-    
-    uid = uuid.uuid4().hex
-    outfile = outdir / uid
-    if outfile.exists():
-        outfile.unlink()
-        
-    # (home / '.error').unlink(missing_ok=True) # only 3.8
-    errfile = path / '.error'
-    if errfile.exists():
-        errfile.unlink()
-
-    args = uid, path, form['level_names'], level_filters, form['unit'], \
-           fpat, apat, analysis_regexes, form['n_clusters'], form['swords'], form['defaultswords']
-    p = Process(target=explore, args=args)
-    p.start()
-    # allow some time to finish, in which case we can take the user
-    # directly to the next stage.
-    p.join(timeout=3)
-    return uid
-    
-def explore(uid, path, level_names, level_filters, uoa,
-            fpat, apat, analysis_regexes, n_clusters, swords, defaultswords):
-    print(f'Begin explore "{path.name}": {uid}') 
     articles_df, chunks_df = load_wrangled(path, level_filters, uoa, fpat)
 
     print("Finished loading data:")
@@ -374,7 +383,8 @@ def explore(uid, path, level_names, level_filters, uoa,
         res = dict()
         res['error'] = "Nothing matched the filter terms!"
         print(res['error'])
-        outfile = path / '.output' / uid
+        output = '.output'
+        outfile = os.path.join(path, output, uid)
         with open(outfile, 'w') as f:
             json.dump(res, f)
         return
@@ -384,7 +394,7 @@ def explore(uid, path, level_names, level_filters, uoa,
     chunks_df.rename(columns=colmap, inplace=True)
 
     chunks_df = chunks_df.reindex([*level_names, 'Filename', 'Article ID', 'Text'], axis=1)
-    
+
     analyzer = SentimentIntensityAnalyzer()
     def score(row):
         return analyzer.polarity_scores(row['Text'])['compound']
@@ -395,13 +405,15 @@ def explore(uid, path, level_names, level_filters, uoa,
     #@TODO: Save articles/chunks after filtering, plus parameters used
 
     res = build_results(articles_df, chunks_df, matches_df, level_names,
-                        uoa, analysis_regexes, n_clusters, swords, defaultswords)
-
-    outfile = path / '.output' / uid
+                        uoa, analysis_regexes, n_clusters, swords, defaultswords, uid)
+    output = '.output'
+    outfile = os.path.join(path, output, uid)
     with open(outfile, 'w') as f:
         json.dump(res, f)
 
-    print(f'"{path.name} results built and dumped: {uid}')
+    print(f'"{path} results built and dumped: {uid}')
+    socketio.emit('taskstatus', res, to=uid)
+    return True
 
 def wrangle_dataset(path, oneper, splitter, use_regex, level_names, level_vals):
     vals = [list(x) for x in level_vals]
@@ -418,23 +430,27 @@ def wrangle_dataset(path, oneper, splitter, use_regex, level_names, level_vals):
     if errfile.exists():
         errfile.unlink()
 
-    p = Process(target=parse_articles, args=(path, names, vals, pat))
-    p.start()
+    #p = Process(target=parse_articles, args=(path, names, vals, pat))
+    #p.start()
+    task = parse_articles.delay(os.fspath(path), names, vals, pat)
     # allow some time to finish, in which case we can take the user
     # directly to the next stage.
-    p.join(timeout=2)
-    return not p.is_alive()
+    #p.join(timeout=2)
+    return True
 
+@celery.task()
 def parse_articles(path, level_names, level_vals, splitter):
     print(f"Wrangling started: {path}")
     try:
         regex = re.compile(splitter, flags=re.M)
         articles = load_raw_articles(path, level_names, regex)
-        articles.to_pickle(path / '.wrangled.pkl')
+        wrangled = '.wrangled.pkl'
+        articles.to_pickle(os.path.join(path, wrangled))
     except Exception as e:
         print("Wrangling failed!")
         print(e)
-        with open(path / '.error', 'w') as f:
+        error = '.error'
+        with open(os.path.join(path, error), 'w') as f:
             f.write(str(e))
         raise
 
@@ -444,8 +460,6 @@ def parse_articles(path, level_names, level_vals, splitter):
     # also indicates to the rest of the server that we are done wrangling
     info = dict(level_names=level_names, level_vals=level_vals,
                 article_regex_splitter=splitter)
-    with open(path / '.info.json', 'w') as f:
+    jsonpath = '.info.json'
+    with open(os.path.join(path, jsonpath), 'w') as f:
         json.dump(info, f)
-    
-
-

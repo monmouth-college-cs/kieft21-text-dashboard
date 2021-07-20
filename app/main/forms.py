@@ -121,7 +121,7 @@ def make_level_select(level_names, level_vals):
     
 
 # @TODO: Use wtforms functionality instead of class factory for analysis form.
-def make_analysis_form(level_names, level_vals):
+def make_analysis_form(level_names, level_vals, formdata=None):
     unit_choices = [('fixed_windows', 'Fixed-Sized Windows (5 sentences)'),
                     ('paragraphs', 'Paragraphs'),
                     ('articles', 'Articles'),
@@ -164,6 +164,7 @@ def make_analysis_form(level_names, level_vals):
 
 
     #@TODO: "Remember these settings" checkbox
-    return AnalysisForm()
+    
+    return AnalysisForm(formdata)
             
     

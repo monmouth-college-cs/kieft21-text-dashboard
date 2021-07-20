@@ -1,13 +1,16 @@
-import sys, json, zipfile, re, os
+import sys, json, zipfile, re, os, uuid
 from pathlib import Path
 
 from flask import render_template, session, redirect, \
-    url_for, current_app, flash, Markup, request
+    url_for, current_app, flash, Markup, request, jsonify
+from flask_socketio import emit, join_room, leave_room
 from werkzeug.utils import secure_filename
+from werkzeug.datastructures import MultiDict as FormDataStructure
 from wtforms import FormField
 import pandas as pd
 
 from . import main
+from .. import socketio
 from .forms import UploadForm, make_wrangle_form, make_analysis_form, U2Form
 from .process import process, wrangle_dataset, make_dataset, build_default_stopwords
 from .util import is_supported_file, get_datasets, get_dataset_home, get_output_home, \
@@ -46,7 +49,6 @@ def test():
         flash(msg)
     return render_template('test.html', form=form)
 
-
 @main.route('/upload', methods=['GET', 'POST'])
 def upload():
     form = UploadForm()
@@ -68,11 +70,11 @@ def upload():
         return redirect(url_for('.inprogress', dataset=name, stage='preprocess'))
     return render_template('upload.html', form=form)
 
-def get_analysis_form(dataset):
+def get_analysis_form(dataset, formdata=None):
     info = get_dataset_info(dataset)
-    return make_analysis_form(info['level_names'], info['level_vals'])
+    return make_analysis_form(info['level_names'], info['level_vals'], formdata)
 
-def do_explore(dataset, form):
+def do_explore(dataset, form, uid):
     path = get_dataset_home(dataset)
     data = get_dataset_info(dataset)
     for field in form: # assume no subfields?
@@ -84,7 +86,7 @@ def do_explore(dataset, form):
         else:
             data[field.name] = field.data
 
-    return process(dataset, path, data)
+    return process(dataset, path, data, uid)
 
 def load_results(path, tag):
     outfile = path / '.output' / tag
@@ -93,6 +95,26 @@ def load_results(path, tag):
     with open(outfile, 'r') as f:
         results = json.load(f)
     return results
+
+@main.route('/analysisform', methods=['POST'])
+def on_analysis_submit():
+    data = request.json
+    dataset = request.json['dataset']
+    analysis_form = get_analysis_form(dataset)
+    if 'formdata' in data:
+        form_data = FormDataStructure(data['formdata'])
+    analysis_form = get_analysis_form(dataset, formdata=form_data)
+
+    if not analysis_form.validate():
+        return jsonify(data={'form error': analysis_form.errors}), 400
+    
+    roomid = str(uuid.uuid4())
+    details = [dataset, roomid]
+
+    task = do_explore(dataset, analysis_form, roomid)
+
+    return jsonify({'roomid': roomid}), 202
+
 
 @main.route('/explore/<dataset>/', methods=['GET', 'POST'])
 @main.route('/explore/<dataset>/<tag>', methods=['GET', 'POST'])
@@ -112,34 +134,30 @@ def explore(dataset, tag=None):
         flash('This dataset is either still wrangling or there is an error.')
         return redirect(url_for('.inprogress', dataset=dataset, stage='wrangle'))
 
-    results = dict()
+    results = None
     tab = 'settings'
     analysis_form = get_analysis_form(dataset)
 
-    # if we just submitted the form, tag doesn't matter, and in fact needs to be removed!
-    if analysis_form.validate_on_submit():
-        tag = do_explore(dataset, analysis_form)
-        return redirect(url_for('.explore', dataset=dataset, tag=tag))
-
-    # Let's load the results
-    if request.method != 'POST' and tag:
+    # Let's try to load the results
+    if tag: 
         try:
             results = load_results(path, tag)
         except json.decoder.JSONDecodeError as e:
             flash("Error loading results; something went wrong. Likely a bug.", 'error')
             return redirect(url_for('.explore', dataset=dataset))
+
+        # @TODO: check whether or not the tag just does not exist, or
+        # if the computation has started but not finished.
         if results is None:
-            flash('Output is still processing, produced an error, or has been deleted.')
-            return redirect(url_for('.inprogress', dataset=dataset, stage='explore', tag=tag))
-        if 'error' in results:
+            flash("In progress or tag does not exist.");
+        elif 'error' in results:
             flash(results['error'], 'error')
-            tab = 'settings'
         else:
             tab = 'summary'
-                        
         
     return render_template('explore.html', dataset=dataset, tag=tag, active_tab=tab,
-                           analysis_form=analysis_form, results=results, swords = ", ".join(build_default_stopwords()))
+                           analysis_form=analysis_form, results=results,
+                           swords = ", ".join(build_default_stopwords()))
 
 def get_levels(dname):
     p = get_dataset_home(dname)
@@ -262,3 +280,16 @@ def wrangle(dataset):
 
     return render_template('wrangle.html', form=form, **info)
 
+@socketio.on('status')
+def bounce_status(message):
+    emit('status', {'status': message['status']}, to=request.sid)
+
+@socketio.on('connect')
+def connect(data=None):
+    print(f'Client connected.')
+
+@socketio.on('join_room')
+def join_task_room(data):
+    assert 'roomid' in data
+    join_room(data['roomid'])
+    socketio.emit('status', {'status': f'Joined room: {data["roomid"]}'}, to=data['roomid'])

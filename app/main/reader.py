@@ -186,7 +186,7 @@ def get_sentences(text, fpat=None, smart=False):
                     yield sent
         else:
             yield from sents
-    
+
 def get_fixed_windows(text, fpat=None, csize=2):
     sents = list(get_sentences(text))
     wsize = csize*2 + 1
@@ -274,8 +274,9 @@ def load_wrangled(home, level_filters, uoa, fpattern):
     level_placeholders = [f'_level_{i}' for i in range(len(level_names))]
     chunks.update({f'{name}': [] for name in level_placeholders})
 
-    cache = home / '.wrangled.pkl'
-    if cache.exists():
+    wrangledpath= '.wrangled.pkl'
+    cache = os.path.join(home, wrangledpath)
+    if os.path.exists(cache):
         all_articles = pd.read_pickle(cache)
     else:
         all_articles = load_raw_articles(home, level_names, splitter)
@@ -284,7 +285,7 @@ def load_wrangled(home, level_filters, uoa, fpattern):
     for lname, filt in zip(level_placeholders, level_filters):
         # if NA, then it means any?
         df = df[df[lname].isin(filt) | df[lname].isna()]
-            
+
     for _, row in df.iterrows():
         for chunk in get_chunks(row['Text'], uoa, fpattern):
             for col in df.columns:
