@@ -272,7 +272,8 @@ def wrangle(dataset):
         level_names = [getattr(form, field).data for field in dir(form)
                        if field.startswith('level')]
         finished = wrangle_dataset(path, form.oneper.data, form.splitter.data,
-                                   form.split_regex.data, level_names, levels)
+                                   form.split_regex.data, level_names, levels, form.split_start.data, form.start_regex.data,
+                                   form.split_end.data, form.end_regex.data)
         if finished:
             return redirect(url_for('.explore', dataset=dataset))
         flash("Wrangling started. It may take a while.")

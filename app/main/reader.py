@@ -1,4 +1,4 @@
-import re, os
+import re, os, unicodedata
 from collections import defaultdict
 from pathlib import Path
 
@@ -55,19 +55,27 @@ def read_text_file(filename, splitter, start, end):
         doc = cleanup_text(f.read())
 
     # @TODO: For huge files, use/find a regex splitter that uses a generator.
-    if splitter:
+    if start != re.compile('',re.M) and end != re.compile('',re.M):
+        print('Using start and end!')
+        split1 = start.split(doc)
+        split2 = []
+        for object in split1:
+            split2.append(end.split(object))
+        for object in split2:
+            for thing in object:
+                if thing == '':
+                    split2.remove(object)
+        for objects in split2:
+            del objects[-1]
+        newlist = []
+        for object in split2:
+            newlist = newlist + object
+        yield from newlist
+    elif splitter != re.compile('',re.M) and (start == re.compile('', re.M) or end == re.compile('', re.M)):
+        print('Using splitter!')
         yield from splitter.split(doc)
-    if start and end:
-        split = start.split(doc)
-        list1 = []
-        list2 = []
-        for object in split:
-            list1.append(end.split(object))
-        for object in list1:
-            list2 = list2 + object
-        list2 = list(filter(None, list2))
-        yield from list2
     else:
+        print('Using none!')
         yield doc
 
 # filename and sheet_name are only for error messages

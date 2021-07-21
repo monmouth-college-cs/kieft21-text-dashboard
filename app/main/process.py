@@ -415,15 +415,32 @@ def explore(uid, path, level_names, form, uoa,
     socketio.emit('taskstatus', res, to=uid)
     return True
 
-def wrangle_dataset(path, oneper, splitter, use_regex, level_names, level_vals, start, end):
+def wrangle_dataset(path, oneper, splitter, use_regex, level_names, level_vals, start, start_regex, end, end_regex):
     vals = [list(x) for x in level_vals]
     names = [name if name else f'level{i}' for i,name in enumerate(level_names)]
+
     if oneper:
         pat = None
     elif use_regex:
         pat = splitter
     else: # plain text splitter, treat as regex anyway
         pat = re.escape(splitter)
+    
+    if oneper:
+        start_pat = None
+    elif start_regex:
+        start_pat = start
+    else:
+        start_pat = start
+    
+    if oneper:
+        end_pat = None
+    elif end_regex:
+        end_pat = end
+    else:
+        end_pat = end
+
+
 
     # (path / '.error').unlink(missing_ok=True) # only 3.8
     errfile = path / '.error'
@@ -432,7 +449,7 @@ def wrangle_dataset(path, oneper, splitter, use_regex, level_names, level_vals, 
 
     #p = Process(target=parse_articles, args=(path, names, vals, pat))
     #p.start()
-    task = parse_articles.delay(os.fspath(path), names, vals, pat)
+    task = parse_articles.delay(os.fspath(path), names, vals, pat, start_pat, end_pat)
     # allow some time to finish, in which case we can take the user
     # directly to the next stage.
     #p.join(timeout=2)
