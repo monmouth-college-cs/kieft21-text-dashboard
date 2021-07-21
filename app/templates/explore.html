@@ -20,7 +20,8 @@
 {% block head %}
 {{ super() }}
 <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
-<script src="//cdnjs.cloudflare.com/ajax/libs/jquery/2.2.4/jquery.min.js"></script>
+<script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jsviews/1.0.11/jsviews.min.js"></script>
 <script src="//cdnjs.cloudflare.com/ajax/libs/socket.io/4.1.2/socket.io.min.js"></script>
 {% endblock %}
 
@@ -43,7 +44,7 @@
     <!-- 	  {{ save_form.hidden_tag() }} -->
     <!-- 	  {{ render_hidden_errors(save_form) }} -->
     <!-- 	  {{ render_field(save_form.tag, form_type='inline', placeholder=save_form.tag.label.text, class_='form-control-sm') }} -->
-    <!-- 	  {{ render_field(save_form.submit_save, form_type='inline') }} -->
+    <!-- 	  {{ render_field(save_form.submit_save, form_type='inlpersoine') }} -->
     <!-- 	</form> -->
     #}
   </div>
@@ -253,51 +254,51 @@
 
       <hr>
 
-      <div class="clustercontainer">
-      <h5>Cluster <div id="clusterid"></div>
-      </h5>
+      <script id="clusterTemplate" type="text/x-jsrender">
+        <div> [% for clusters %]
 
-      <p><strong>"Most important" words</strong>:
-      <div id="important_words"></div>
-      </p>
-
-      <p>Most common words and two-word phrases:
-      <figure class="figure text-center d-block">
-        {% set cap = "Word cloud for this cluster." %}
-        <img id="cluster_cloud" src="" class="figure-img img-fluid rounded" alt={{ cap }}>
-        <figcaption class="figure-caption">{{ cap }}</figcaption>
-      </figure>
-      </p>
-
-
-      <p>Representative chunks: </p>
-
-      <div class="rounded-lg" style="height: 300px; overflow-y: auto;">
-        <table class="table table-striped table-responsive">
+          <h5>Cluster [%:index%]</h5>
+  
+          <p><strong>"Most important" words</strong>: [%* :keywords.join("; "); %] </p>
+  
+          <p>Most common words and two-word phrases:
+          <figure class="figure text-center d-block">
+          <img src="data:image/png;base64,[%:cloud%]"
+              class="figure-img img-fluid rounded"
+              alt= "Word cloud for this cluster">
+          <figcaption class="figure-caption">"Word cloud for this cluster"</figcaption>
+              </figure>
+              </p>
+  
+  
+          <p>Representative chunks: </p>
+  
+          <div class="rounded-lg" style="height: 300px; overflow-y: auto;">
+          <table class="table table-striped table-responsive">
           <thead class="thead-dark">
-            <tr>
-              <th scope="col">#</th>
-              <th scope="col">Text</th>
-            </tr>
-          </thead>
+          <tr><th scope="col">#</th><th scope="col">Text</th></tr></thead>
           <tbody>
-
+          [% for reps %]
             <tr>
-              <th id="rowindex" scope="row"></th>
-              <td id="chunkrep"></td>
+            <th scope="row">[%:index%]</th>
+              <td>[%* chunk_rep = String(chunk); chunk_rep = chunk_rep.replace("/n", "<br>"); %]</td>
+          [% /for %]
           </tbody>
-        </table>
-      </div>
-      </div>
-      </div>
+          </table>
+          </div>
 
-      <hr>
+          <hr>
+        [% /for %] </div>
+    </script>
 
     </div>
 
     <script>
+      
       $(document).ready(function () {
 
+        setupTemplate();
+        
         $.ajaxSetup({
           beforeSend: function (xhr, settings) {
             if (!/^(GET|HEAD|OPTIONS|TRACE)$/i.test(settings.type) && !this.crossDomain) {
@@ -306,6 +307,7 @@
           }
         });
 
+        
         var roomId = {% if room %}"{{ room|safe }}"{% else %}undefined{% endif %};
         var dataset = '{{ dataset|safe }}';
         var url = 'http://' + document.domain + ':' + location.port;
@@ -412,62 +414,58 @@
         }
       });
 
+      function setupTemplate() {
+        $.views.settings.delimiters('[%','%]');
+        $.views.settings.allowCode(true);
+        var skeleton = $.templates('#clusterTemplate');
+      }
+
       function updateProgress(data) {
             if ('articles_summary' in data) {
-              $('#articles_summary').html(data['articles_summary'])
+              $('#articles_summary').html(data['articles_summary']);
             }
             if ('chunks_summary' in data) {
-              $('#chunks_summary').html(data['chunks_summary'])
+              $('#chunks_summary').html(data['chunks_summary']);
             }
             if ('wordcloud_all_img' in data) {
               wordcloud_all_img = String(data['wordcloud_all_img'])
-              $('#wordcloud_all_img').attr("src", ("data:image/png;base64, " + wordcloud_all_img))
+              $('#wordcloud_all_img').attr("src", ("data:image/png;base64, " + wordcloud_all_img));
             }
             if ('chunks_sentiment_summary' in data) {
-              $('#chunks_sentiment_summary').html(data['chunks_sentiment_summary'])
+              $('#chunks_sentiment_summary').html(data['chunks_sentiment_summary']);
             }
             if ('scatter_all_2d' in data) {
-              $('#scatter_all_2d').html(data['scatter_all_2d'])
+              $('#scatter_all_2d').html(data['scatter_all_2d']);
             }
             if ('scatter_all_3d' in data) {
-              $('#scatter_all_3d').html(data['scatter_all_3d'])
+              $('#scatter_all_3d').html(data['scatter_all_3d']);
             }
             if ('matches_summary' in data) {
-              $('#matches_summary').html(data['matches_summary'])
+              $('#matches_summary').html(data['matches_summary']);
             }
             if ('wordcloud_analysis_img' in data) {
-              wordcloud_analysis_img = String(data['wordcloud_analysis_img'])
-              $('#wordcloud_analysis_img').attr("src", ("data:image/png;base64, " + wordcloud_analysis_img))
+              wordcloud_analysis_img = String(data['wordcloud_analysis_img']);
+              $('#wordcloud_analysis_img').attr("src", ("data:image/png;base64, " + wordcloud_analysis_img));
             }
             if ('matches_sentiment_summary' in data) {
-              $('#matches_sentiment_summary').html(data['matches_sentiment_summary'])
+              $('#matches_sentiment_summary').html(data['matches_sentiment_summary']);
             }
             if ('matches_sentiment_breakdown' in data) {
-              $('#matches_sentiment_breakdown').html(data['matches_sentiment_breakdown'])
+              $('#matches_sentiment_breakdown').html(data['matches_sentiment_breakdown']);
             }
             if ('analysis_table' in data) {
-              $('#puttexthere').html(data['analysis_table'])
+              $('#puttexthere').html(data['analysis_table']);
             }
             if ('cluster_info' in data) {
-              $.each( data['cluster_info'], function( key, cluster ) {
-                $('#clusterid').append(cluster_info.indexOf(cluster))
-                important_words = cluster['keywords'].join("; ")
-                $('#important_words').append(important_words)
-                cluster_cloud = String(cluster['cloud'])
-                $('#cluster_cloud').attr("src", ("data:image/png;base64, " + cluster_cloud))
-                $.each(cluster['reps'], function( key, chunk) {
-                  $("#rowindex").append(cluster['reps'].indexOf(chunk))
-                  chunkrep = String(chunk)
-                  chunkrep = chunkrep.replace("/n", "<br>")
-                  $("#chunkrep").append(chunkrep)
-                })
-              })
+              var clusters = data['cluster_info'];
+              var clusterhtml = skeleton.render(clusters);
+              $('#allclusters').html(clusterhtml);
             }
             if ('cluster_2d' in data) {
-              $('#cluster_2d').html(data['cluster_2d'])
+              $('#cluster_2d').html(data['cluster_2d']);
             }
             if ('cluster_3d' in data) {
-              $('#cluster_3d').html(data['cluster_3d'])
+              $('#cluster_3d').html(data['cluster_3d']);
             }
 
           }
