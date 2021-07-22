@@ -370,6 +370,8 @@
 
             $('#analysis_form').submit( (e) => {
 		start_explore();
+    $("#settings").attr("class", "tab-pane fade container");
+    $("#summary").attr("class", "tab-pane fade container active show");
 		e.preventDefault();
             });
 
@@ -462,6 +464,7 @@
             }
 
         }
+  
       </script>
 
     </div> <!-- container -->
