@@ -259,7 +259,7 @@
 
 	<script id="clusterTemplate" type="text/x-jsrender">
     <div>
-    <h5>Cluster [%:#index%]</h5>
+    <h5>Cluster [%:#index+1%]</h5>
     <p><strong>"Most important" words</strong>: [%:keywords.join("; ")%] </p>
 
     <p>Most common words and two-word phrases:
@@ -280,7 +280,7 @@
         </thead>
         <tbody>[%for reps itemVar='~chunk'%]
           <tr>
-            <th scope="row">[%:#index%]</th>
+            <th scope="row">[%:#index+1%]</th>
             <td>[%:~chunk.replace('\n', '<br>')%]</td>
           </tr>
         [%/for %]</tbody>
