@@ -88,8 +88,8 @@ def do_explore(dataset, form, uid):
 
     return process(dataset, path, data, uid)
 
-def load_results(path, tag):
-    outfile = path / '.output' / tag
+def load_results(path, room):
+    outfile = path / '.output' / room
     if not outfile.exists():
         return None
     with open(outfile, 'r') as f:
@@ -117,8 +117,8 @@ def on_analysis_submit():
 
 
 @main.route('/explore/<dataset>/', methods=['GET', 'POST'])
-@main.route('/explore/<dataset>/<tag>', methods=['GET', 'POST'])
-def explore(dataset, tag=None):
+@main.route('/explore/<dataset>/<room>', methods=['GET', 'POST'])
+def explore(dataset, room=None):
     path = get_dataset_home(dataset)
     if not path.exists():
         flash(f'Dataset "{dataset}" does not exist, but you can upload a new one.')
@@ -139,9 +139,9 @@ def explore(dataset, tag=None):
     analysis_form = get_analysis_form(dataset)
 
     # Let's try to load the results
-    if tag: 
+    if room: 
         try:
-            results = load_results(path, tag)
+            results = load_results(path, room)
         except json.decoder.JSONDecodeError as e:
             flash("Error loading results; something went wrong. Likely a bug.", 'error')
             return redirect(url_for('.explore', dataset=dataset))
@@ -155,7 +155,7 @@ def explore(dataset, tag=None):
         else:
             tab = 'summary'
         
-    return render_template('explore.html', dataset=dataset, tag=tag, active_tab=tab,
+    return render_template('explore.html', dataset=dataset, room=room, active_tab=tab,
                            analysis_form=analysis_form, results=results,
                            swords = ", ".join(build_default_stopwords()))
 

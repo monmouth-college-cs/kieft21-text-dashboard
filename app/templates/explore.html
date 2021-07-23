@@ -259,7 +259,7 @@
 
 	<script id="clusterTemplate" type="text/x-jsrender">
     <div>
-    <h5>Cluster [%:#index+1%]</h5>
+    <h5>Cluster [%:#index%]</h5>
     <p><strong>"Most important" words</strong>: [%:keywords.join("; ")%] </p>
 
     <p>Most common words and two-word phrases:
@@ -336,7 +336,7 @@
 		socket = io.connect(url);
 		socket.on('connect', () => {
 		    updateStatus('Connected.');
-		    assert(roomId);
+		    console.log(roomId);
 		    socket.emit('join_room', { 'roomid': roomId });
 		});
 		socket.on('connect_error', () => console.log("connect error!"));
@@ -359,13 +359,13 @@
             }
 
 
-            {% if room and not done %} // Need to join the room right away
-            assert(roomId, "Javascript roomId variable not correctly set.");
+            {% if room %} // Need to join the room right away
             console.log(`Joining in-progress task: ${roomId}`)
             progress_div = $('<div class="progress"><div></div><div>0%</div><div>...</div><div>&nbsp;</div></div><hr>');
             $('#progress').html(progress_div);
-
-            setupConnection();
+	     		  $('#room').html(`<a href="${roomId}">${roomId}</a>`);
+            setupConnection(roomId);
+            changeTab();
             {% endif %}
 
             $('#analysis_form').submit( (e) => {
@@ -400,7 +400,7 @@
 	     	    success: function(data, status, request) {
 	     		roomId = data.roomid;
 	     		updateStatus(`Server assigned us room: ${data.roomid}`);
-	     		$('#room').html(`<a href="${dataset}/${data.roomid}">${data.roomid}</a>`);
+	     		$('#room').html(`<a href="${data.roomid}">${data.roomid}</a>`);
 	     		setupConnection(roomId);
                     },
                     error: function(data) {
