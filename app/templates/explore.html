@@ -9,7 +9,7 @@
 {% set short_name = display_name|lower %}
 {% endif %}
 <li class="nav-item">
-  <a class="nav-link {% if active_tab == short_name %}active{% endif %}" data-toggle="tab" id="settings-tab" role="tab"
+  <a class="nav-link {% if active_tab == short_name %}active{% endif %}" data-toggle="tab" id="{{ short_name}}link" role="tab"
      aria-controls="{{ short_name }}" aria-selected="{% if active_tab == short_name %}true{% else %}false{% endif %}"
      href="#{{ short_name }}">{{ display_name }}</a>
 </li>
@@ -370,8 +370,7 @@
 
             $('#analysis_form').submit( (e) => {
 		start_explore();
-    $("#settings").attr("class", "tab-pane fade container");
-    $("#summary").attr("class", "tab-pane fade container active show");
+    changeTab();
 		e.preventDefault();
             });
 
@@ -464,6 +463,13 @@
             }
 
         }
+
+  function changeTab() {
+    $("#settings").attr("class", "tab-pane fade container");
+    $("#summary").attr("class", "tab-pane fade container active show");
+    $("#settingslink").attr("class", "nav-link");
+    $("#summarylink").attr("class", "nav-link active");
+  }
   
       </script>
 
