@@ -3,7 +3,7 @@ from pathlib import Path
 
 from flask import render_template, session, redirect, \
     url_for, current_app, flash, Markup, request, jsonify
-from flask_socketio import emit, join_room, leave_room
+from flask_socketio import emit, join_room, leave_room, rooms
 from werkzeug.utils import secure_filename
 from werkzeug.datastructures import MultiDict as FormDataStructure
 from wtforms import FormField
@@ -93,7 +93,7 @@ def load_results(path, room):
     if not outfile.exists():
         return None
     with open(outfile, 'r') as f:
-        results = json.load(f)
+        results = json.load(f)    
     return results
 
 @main.route('/analysisform', methods=['POST'])
@@ -142,18 +142,17 @@ def explore(dataset, room=None):
     if room: 
         try:
             results = load_results(path, room)
+
         except json.decoder.JSONDecodeError as e:
             flash("Error loading results; something went wrong. Likely a bug.", 'error')
             return redirect(url_for('.explore', dataset=dataset))
-
+            
         # @TODO: check whether or not the tag just does not exist, or
         # if the computation has started but not finished.
         if results is None:
-            flash("In progress or tag does not exist.");
+            flash("In progress or tag does not exist.")
         elif 'error' in results:
             flash(results['error'], 'error')
-        else:
-            tab = 'summary'
         
     return render_template('explore.html', dataset=dataset, room=room, active_tab=tab,
                            analysis_form=analysis_form, results=results,
