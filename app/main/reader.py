@@ -1,4 +1,4 @@
-import re, os
+import re, os, unicodedata
 from collections import defaultdict
 from pathlib import Path
 
@@ -49,15 +49,33 @@ def cleanup_text(text):
 
 # just get the text
 # @TODO: Check plain text file encoding?
-def read_text_file(filename, splitter):
+def read_text_file(filename, splitter, start, end):
     # @TODO: For huge files, don't read all at once!
     with open(filename, 'r', encoding=get_encoding(filename)) as f:
         doc = cleanup_text(f.read())
 
     # @TODO: For huge files, use/find a regex splitter that uses a generator.
-    if splitter:
+    if start != re.compile('',re.M) and end != re.compile('',re.M):
+        print('Using start and end!')
+        split1 = start.split(doc)
+        split2 = []
+        for object in split1:
+            split2.append(end.split(object))
+        for object in split2:
+            for thing in object:
+                if thing == '':
+                    split2.remove(object)
+        for objects in split2:
+            del objects[-1]
+        newlist = []
+        for object in split2:
+            newlist = newlist + object
+        yield from newlist
+    elif splitter != re.compile('',re.M) and (start == re.compile('', re.M) or end == re.compile('', re.M)):
+        print('Using splitter!')
         yield from splitter.split(doc)
     else:
+        print('Using none!')
         yield doc
 
 # filename and sheet_name are only for error messages
@@ -99,12 +117,12 @@ def read_xlsx_file(filename, text_col_pattern=DEFAULT_COLUMN):
         yield from load_xlsx_sheet(filename, name, ws, text_col_pattern)
 
 # Yield all articles from filename, using `splitter` to split the file into articles.
-def load_file(filename, splitter):
+def load_file(filename, splitter, start, end):
     assert is_supported_file(filename)
     if str(filename).endswith('xlsx'):
         yield from read_xlsx_file(filename)
     else:
-        yield from read_text_file(filename, splitter)
+        yield from read_text_file(filename, splitter, start, end)
 
 # @TODO: Don't assume two line breaks mark a paragraph!  Sometimes not
 # true, e.g., Word uses single line break.  I don't really know how to
@@ -247,13 +265,13 @@ def get_chunks(article, unit, fpat=None):
     assert unit in parsers, f"Bad unit: {unit}"
     yield from parsers[unit](article, fpat)
 
-def load_raw_articles(path, level_names, splitter):
+def load_raw_articles(path, level_names, splitter, start, end):
     articles = {'Filename': [], 'Text': [], 'Article ID': []}
     articles.update({f'_level_{i}': [] for i in range(len(level_names))})
 
     for filename in get_files(path):
         levels = parse_levels(filename, path)
-        for aid, article in enumerate(load_file(filename, splitter)):
+        for aid, article in enumerate(load_file(filename, splitter, start, end)):
             articles['Filename'].append(filename.relative_to(path))
             articles['Text'].append(article)
             articles['Article ID'].append(aid)
@@ -267,6 +285,8 @@ def load_wrangled(home, level_filters, uoa, fpattern):
     info = get_dataset_info(home)
     splitter = info['article_regex_splitter']
     level_names = info['level_names']
+    start = info['start_regex_splitter']
+    end = info['start_regex_splitter']
 
     # I set all these to empty lists instead of defaultdict to make
     # sure we have all the right columns.
@@ -279,7 +299,7 @@ def load_wrangled(home, level_filters, uoa, fpattern):
     if os.path.exists(cache):
         all_articles = pd.read_pickle(cache)
     else:
-        all_articles = load_raw_articles(home, level_names, splitter)
+        all_articles = load_raw_articles(home, level_names, splitter, start, end)
 
     df = all_articles
     for lname, filt in zip(level_placeholders, level_filters):
