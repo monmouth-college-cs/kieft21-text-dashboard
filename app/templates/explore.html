@@ -38,9 +38,8 @@
       <!-- 	If you like the results, input a unique name and click the -->
       <!-- "Save Results" button. -->
     </p>
-    <p>Room: <span id="room"></span>
-    <p>SocketIO Status:</p>
-    <ul id="status"></ul>
+    <p>Room: <span id="room"></span> 
+    <p id=loading></p>
     {# Now a comment
     <!-- <div class="row justify-content-center"> -->
       <!-- 	<form method="post" class="form-inline"> -->
@@ -52,7 +51,6 @@
       #}
     </div>
   </div>
-</div>
 
 <div class="container">
 
@@ -375,27 +373,20 @@
 		return `${year}/${month}/${day} ${h}:${m}:${s}`;
             }
 
-            function updateStatus(msg) {
-		timestamp = getTimestamp();
-		$('#status').append(`<li>[${timestamp}] ${msg}</li>`);
-            }
-
             function setupConnection(roomId) {
 		socket = io.connect(url);
 		socket.on('connect', () => {
-		    updateStatus('Connected.');
 		    console.log(roomId);
 		    socket.emit('join_room', { 'roomid': roomId });
 		});
 		socket.on('connect_error', () => console.log("connect error!"));
-		socket.on('disconnect', (reason) => updateStatus(`Got disconnected: ${reason}`))
+		socket.on('disconnect', (reason) => console.log(`Got disconnected: ${reason}`))
 		socket.on('switchtab', () => {
 		    $("#settings").attr("class", "tabnav")
 		    $("#summary").attr("class", "tabnav active")
 		});
 		socket.on('taskprogress', (msg) => { // celery status
 		    console.log("Got task progress.");
-		    updateStatus('got something')
 		    updateProgress(msg);
 		});
 		socket.on('taskdone', (data) => {
@@ -403,7 +394,7 @@
 		    $('#output').text(data);
 
 		});
-		socket.on('status', (msg) => updateStatus(msg.status)); // server/socket status
+		socket.on('status', (msg) => console.log(msg.status)); // server/socket status
             }
 
 
@@ -420,6 +411,7 @@
             $('#analysis_form').submit( (e) => {
 		start_explore();
     changeTab();
+    $('#loading').text('Please Wait... Results will load on page as they come in!');
     emptyAll();
 		e.preventDefault();
             });
@@ -449,7 +441,7 @@
                     data: JSON.stringify(data),
 	     	    success: function(data, status, request) {
 	     		roomId = data.roomid;
-	     		updateStatus(`Server assigned us room: ${data.roomid}`);
+	     		console.log(`Server assigned us room: ${data.roomid}`);
 	     		$('#room').html(`<a href="${data.roomid}">${data.roomid}</a>`);
 	     		setupConnection(roomId);
                     },
@@ -510,6 +502,7 @@
             }
             if ('cluster_3d' in data && ($('#cluster_3d').html() == '') ) {
 		$('#cluster_3d').html(data['cluster_3d']);
+    $('#loading').text('');
             }
 
         }
