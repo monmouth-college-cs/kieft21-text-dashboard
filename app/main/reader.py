@@ -55,6 +55,7 @@ def read_text_file(filename, splitter, start, end):
         doc = cleanup_text(f.read())
 
     # @TODO: For huge files, use/find a regex splitter that uses a generator.
+    # If both start and end aren't empty, always split using those.
     if start != re.compile('',re.M) and end != re.compile('',re.M):
         print('Using start and end!')
         split1 = start.split(doc)
@@ -71,9 +72,11 @@ def read_text_file(filename, splitter, start, end):
         for object in split2:
             newlist = newlist + object
         yield from newlist
+    # If splitter exists and one/both of start and end are empty, use splitter
     elif splitter != re.compile('',re.M) and (start == re.compile('', re.M) or end == re.compile('', re.M)):
         print('Using splitter!')
         yield from splitter.split(doc)
+    # If none, don't split.
     else:
         print('Using none!')
         yield doc
