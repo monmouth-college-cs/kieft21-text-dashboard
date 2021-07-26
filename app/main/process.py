@@ -350,6 +350,7 @@ def process(dname, path, form, uid):
     (path / '.error').unlink(missing_ok=True)
 
     socketio.emit('switchtab', to=uid)
+    # Starts a celery task to explore the dataset. Important to mention, calling on this task variable can get us results anywhere celery is imported.
     task = explore.delay(uid, os.fspath(path), form['level_names'], form, form['unit'], form['fterms'], form['fregex'], form['fcase'], \
         form['aterms'], form['aregex'], form['acase'], form['n_clusters'], form['swords'], form['defaultswords'])
     return uid

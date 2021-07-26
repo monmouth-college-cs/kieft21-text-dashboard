@@ -96,6 +96,7 @@ def load_results(path, room):
         results = json.load(f)    
     return results
 
+# A flask endpoint for the submission of the analysis form. This assigns a room id and starts the exploring.
 @main.route('/analysisform', methods=['POST'])
 def on_analysis_submit():
     data = request.json

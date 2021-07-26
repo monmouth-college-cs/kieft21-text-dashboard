@@ -141,7 +141,8 @@
       </form>
 
     </div>
-
+   <!-- Jinja is still laid within this HTML. This is loading the results from a finished tag if shared.
+        TODO: Update results through JQuery regardless of the status of the job. Use an AJAX. --> 
     <div id="summary" role="tabpanel" aria-labelledby="summary-tab"
 	 class="tab-pane fade container {% if active_tab == 'summary' %}active show{% endif %}">
 
@@ -302,7 +303,7 @@
 	<hr>
 {% endfor %}
 {% endif %}
-
+<!-- This script below is a jsrender/jsviews template. Allows us to loop through clusters easily. -->
 	<script id="clusterTemplate" type="text/x-jsrender">
     <div>
     <h5>Cluster [%:#index%]</h5>
@@ -345,7 +346,7 @@
 	var skeleton = $.templates('#clusterTemplate');			
 
 	$(document).ready(function () {
-
+            // We have to create the AJAX header to contain a CSRF Token, which makes it play nicely with WTForms
             $.ajaxSetup({
 		beforeSend: function (xhr, settings) {
 		    if (!/^(GET|HEAD|OPTIONS|TRACE)$/i.test(settings.type) && !this.crossDomain) {
@@ -353,12 +354,11 @@
 		    }
 		}
             });
-            
+            // Check if the room exists from URL, if so, assign it to this javascript variable.
             var roomId = {% if room %}"{{ room|safe }}"{% else %}undefined{% endif %};
             var dataset = '{{ dataset|safe }}';
             var url = 'http://' + document.domain + ':' + location.port;
             var socket = undefined; // io.connect(url);
-            var progress_div = undefined;
 
             function assert(cond, msg) { if (!cond) throw msg || "Assertion failed"; }
 
@@ -372,7 +372,7 @@
 		const s = now.getSeconds();
 		return `${year}/${month}/${day} ${h}:${m}:${s}`;
             }
-
+            // Setup our socket connection, and joins the correct room.
             function setupConnection(roomId) {
 		socket = io.connect(url);
 		socket.on('connect', () => {
@@ -381,14 +381,11 @@
 		});
 		socket.on('connect_error', () => console.log("connect error!"));
 		socket.on('disconnect', (reason) => console.log(`Got disconnected: ${reason}`))
-		socket.on('switchtab', () => {
-		    $("#settings").attr("class", "tabnav")
-		    $("#summary").attr("class", "tabnav active")
-		});
 		socket.on('taskprogress', (msg) => { // celery status
 		    console.log("Got task progress.");
 		    updateProgress(msg);
 		});
+    // This never gets hit, but I will keep as we may need in future.
 		socket.on('taskdone', (data) => {
 		    console.log(`Done: ${data}`);
 		    $('#output').text(data);
@@ -399,9 +396,7 @@
 
 
             {% if room %} // Need to join the room right away
-            console.log(`Joining in-progress task: ${roomId}`)
-            progress_div = $('<div class="progress"><div></div><div>0%</div><div>...</div><div>&nbsp;</div></div><hr>');
-            $('#progress').html(progress_div);
+            console.log(`Joining in-progress task: ${roomId}`);
 	     		  $('#room').html(`<a href="${roomId}">${roomId}</a>`);
             setupConnection(roomId);
             changeTab();
@@ -409,13 +404,17 @@
             {% endif %}
 
             $('#analysis_form').submit( (e) => {
+    // Start the exploring.
 		start_explore();
+    // Change the tab to summary.
     changeTab();
+    // Tell the user that the results will come in automatically.
     $('#loading').text('Please Wait... Results will load on page as they come in!');
+    // Empty the HTML from the results divs. This allows user to start another task without reloading.
     emptyAll();
 		e.preventDefault();
             });
-
+            // Hit flask endpoint and get formdata back while starting the process.
             function start_explore() {
 		const tmp = $('#analysis_form').serializeArray();
 		let formdata = {};
@@ -432,7 +431,7 @@
 		});
 		data = {'dataset': dataset, 'formdata': formdata};
 
-		// send ajax POST request to start background job
+		// send ajax POST request to start background job (exploring). Also assigns us a room and sets up connection.
 		$.ajax({
                     type: 'POST',
                     url: "{{ url_for('main.on_analysis_submit') }}",
@@ -456,6 +455,7 @@
             }
 	});
 
+  // This function loops through the results that socket recieves and assigns them to the page (if its empty)
 	function updateProgress(data) {
             if ('articles_summary' in data && ($('#articles_summary').html() == '') ) {
 		$('#articles_summary').html(data['articles_summary']);
@@ -506,14 +506,15 @@
             }
 
         }
-
+  
+  // Changes the tab to summary. TODO: Allow more reusability by allowing any tab to be a argument.
   function changeTab() {
     $("#settings").attr("class", "tab-pane fade container");
     $("#summary").attr("class", "tab-pane fade container active show");
     $("#settingslink").attr("class", "nav-link");
     $("#summarylink").attr("class", "nav-link active");
   }
-
+  // Empty the divs that contain results.
   function emptyAll() {
     $('#articles_summary').empty();
 		$('#chunks_summary').empty();
