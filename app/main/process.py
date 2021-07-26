@@ -192,13 +192,14 @@ def make_table(df, table_id=None, classes=None):
         classes = ['table']
     return df.to_html(table_id=table_id, classes=classes).replace(r'\n', '<br>')
 
-
+# Combines word cloud stopwords and NLTK stopwords into one comprehensive list as default - words well, but possibly a better way?
 def build_default_stopwords():
     sciswords = set(text.ENGLISH_STOP_WORDS)
     nltkswords = set(nltk.corpus.stopwords.words('english'))
     default_stopwords = sciswords.union(nltkswords)
     return sorted(default_stopwords)
 
+# Adds custom stopwords to default list, or uses custom stopwords in their place
 def build_stopwords(words, default_words, use_default):
     extra_words = words.split()
     extra_words = set(extra_words)
