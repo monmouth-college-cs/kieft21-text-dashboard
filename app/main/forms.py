@@ -83,6 +83,7 @@ class UploadForm(FlaskForm):
 def make_wrangle_form(levels):
     help_oneper = "Does each plain text file contain only a single article? Does not apply to Excel files."
     help_splitter = "This pattern will be used to split plain text files into a series of articles. Does not apply to Excel files."
+    help_start_end = "This pattern will be used to split plain text files into a series of articles; specifying start and end can help cut out any information you may not want to be added to analysis."
     class WrangleForm(FlaskForm):
         label = Markup(f'One article per file?')
         oneper = HBooleanField(label, default=True, helptext=help_oneper,
@@ -94,6 +95,19 @@ def make_wrangle_form(levels):
                                     helptext="Allows more complicated patterns, as described in the tutorial.",
                                     render_kw={'disabled': 'true'})
         #submit = SubmitField('Wrangle')
+        split_start = HStringField('Start of Article', helptext=help_start_end,
+                                   description = "Only use if not using Article Splitter and using End of Article", 
+                                   render_kw = {'disabled': 'true'})
+        start_regex = HBooleanField('Use Regular Expression?',
+                                   helptext="Allows more complicated patterns, as described in the tutorial.",
+                                   render_kw={'disabled': 'true'})
+        split_end = HStringField('End of Article', helptext=help_start_end,
+                                   description = "Only use if not using Article Splitter and using End of Article", 
+                                   render_kw = {'disabled': 'true'})
+        end_regex = HBooleanField('Use Regular Expression?',
+                                   helptext="Allows more complicated patterns, as described in the tutorial.",
+                                   render_kw={'disabled': 'true'})
+
 
     help_levels = "Provide a descriptive name for this level."
     for i, level in enumerate(levels):
@@ -121,7 +135,7 @@ def make_level_select(level_names, level_vals):
     
 
 # @TODO: Use wtforms functionality instead of class factory for analysis form.
-def make_analysis_form(level_names, level_vals):
+def make_analysis_form(level_names, level_vals, formdata=None):
     unit_choices = [('fixed_windows', 'Fixed-Sized Windows (5 sentences)'),
                     ('paragraphs', 'Paragraphs'),
                     ('articles', 'Articles'),
@@ -164,6 +178,7 @@ def make_analysis_form(level_names, level_vals):
 
 
     #@TODO: "Remember these settings" checkbox
-    return AnalysisForm()
+    
+    return AnalysisForm(formdata)
             
     

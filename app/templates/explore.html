@@ -9,10 +9,8 @@
 {% set short_name = display_name|lower %}
 {% endif %}
 <li class="nav-item">
-  <a class="nav-link {% if active_tab == short_name %}active{% endif %}"
-     data-toggle="tab" id="settings-tab"
-     role="tab" aria-controls="{{ short_name }}"
-     aria-selected="{% if active_tab == short_name %}true{% else %}false{% endif %}"
+  <a class="nav-link {% if active_tab == short_name %}active{% endif %}" data-toggle="tab" id="{{ short_name}}link" role="tab"
+     aria-controls="{{ short_name }}" aria-selected="{% if active_tab == short_name %}true{% else %}false{% endif %}"
      href="#{{ short_name }}">{{ display_name }}</a>
 </li>
 {% endmacro %}
@@ -22,6 +20,12 @@
 {% block head %}
 {{ super() }}
 <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+<script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+<!-- <script src="https://cdnjs.cloudflare.com/ajax/libs/jsviews/1.0.11/jsviews.min.js"></script> -->
+<script src="https://www.jsviews.com/download/jsrender.js"></script>
+
+<script src="//cdnjs.cloudflare.com/ajax/libs/socket.io/4.1.2/socket.io.min.js"></script>
+
 {% endblock %}
 
 {% block page_content %}
@@ -29,25 +33,24 @@
 <div class="jumbotron">
   <h1 class="display-4 text-center">Dashboard - <em>{{ dataset }}</em></h1>
   <div class="container">
-      <p class="lead">Choose the appropriate values in the "Settings" tab, then
-	click "Analyze" to view the results, shown in the other tabs.
-
+    <p class="lead">Choose the appropriate values in the "Settings" tab, then
+      click "Analyze" to view the results, shown in the other tabs.
       <!-- 	If you like the results, input a unique name and click the -->
       <!-- "Save Results" button. -->
-
-      </p>
-      {# Now a comment
+    </p>
+    <p>Room: <span id="room"></span> 
+    <p id=loading></p>
+    {# Now a comment
     <!-- <div class="row justify-content-center"> -->
-    <!-- 	<form method="post" class="form-inline"> -->
-    <!-- 	  {{ save_form.hidden_tag() }} -->
-    <!-- 	  {{ render_hidden_errors(save_form) }} -->
-    <!-- 	  {{ render_field(save_form.tag, form_type='inline', placeholder=save_form.tag.label.text, class_='form-control-sm') }} -->
-    <!-- 	  {{ render_field(save_form.submit_save, form_type='inline') }} -->
-    <!-- 	</form> -->
-    #}
+      <!-- 	<form method="post" class="form-inline"> -->
+	<!-- 	  {{ save_form.hidden_tag() }} -->
+	<!-- 	  {{ render_hidden_errors(save_form) }} -->
+	<!-- 	  {{ render_field(save_form.tag, form_type='inline', placeholder=save_form.tag.label.text, class_='form-control-sm') }} -->
+	<!-- 	  {{ render_field(save_form.submit_save, form_type='inlpersoine') }} -->
+	<!-- 	</form> -->
+      #}
     </div>
   </div>
-</div>
 
 <div class="container">
 
@@ -63,119 +66,125 @@
     <div id="settings" role="tabpanel" aria-labelledby="settings-tab"
 	 class="tab-pane fade show container {% if active_tab == 'settings' %}active show{% endif %}">
 
-      <form class="form" action="" method="post" role="form">
-	{{ analysis_form.hidden_tag() }}
-	{{ render_hidden_errors(analysis_form) }}
+      <form id="analysis_form">
+        {{ analysis_form.hidden_tag() }}
+        {{ render_hidden_errors(analysis_form) }}
 
-	<fieldset class="form-group card">
-	  <legend class="card-header text-primary">
-	    {{ analysis_form.unit.label(class="form-control-label")|safe }}
-	  </legend>
-	  <div class="card-body">
-	    {{ analysis_form.unit(class="form-control")|safe }}
-	  </div>
-	</fieldset>
+        <fieldset class="form-group card">
+          <legend class="card-header text-primary">
+            {{ analysis_form.unit.label(class="form-control-label")|safe }}
+          </legend>
+          <div class="card-body">
+            {{ analysis_form.unit(class="form-control")|safe }}
+          </div>
+        </fieldset>
 
-<!-- Modal -->
-<div class="modal fade" id="stopModal" tabindex="-1" role="dialog" aria-labelledby="stopModalLabel" aria-hidden="true">
-  <div class="modal-dialog" role="document">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title" id="stopModalLabel">Default Stop Words</h5>
-        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-          <span aria-hidden="true">&times;</span>
-        </button>
-      </div>
-      <div class="modal-body">
-        {{ swords }}
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
-      </div>
-    </div>
-  </div>
-</div>
-
-  
-
-	<fieldset class="form-group card">
-	  <legend class="card-header text-primary">Filtering</legend>
-	  <div class="card-body">
-    {{ render_form_row([analysis_form.swords]) }}
-    {{ render_form_row([analysis_form.defaultswords]) }}
-    <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#stopModal">
-      View default stopwords
-    </button>
-	  {{ render_form_row([analysis_form.fterms]) }}
-	  {{ render_form_row([analysis_form.fcase, analysis_form.fregex]) }}
-	  {% for field in analysis_form.level_select %}
-	  {{ render_field(field) }}
-	  {% endfor %}
-	  </div>
-	</fieldset>
+        <!-- Modal -->
+        <div class="modal fade" id="stopModal" tabindex="-1" role="dialog" aria-labelledby="stopModalLabel"
+             aria-hidden="true">
+          <div class="modal-dialog" role="document">
+            <div class="modal-content">
+              <div class="modal-header">
+                <h5 class="modal-title" id="stopModalLabel">Default Stop Words</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                  <span aria-hidden="true">&times;</span>
+                </button>
+              </div>
+              <div class="modal-body">
+                {{ swords }}
+              </div>
+              <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+              </div>
+            </div>
+          </div>
+        </div>
 
 
 
-	<fieldset class="form-group card">
-	  <legend class="card-header text-primary">Analysis Breakdown</legend>
-	  <div class="card-body">
-	  {{ render_form_row([analysis_form.aterms]) }}
-	  {{ render_form_row([analysis_form.acase, analysis_form.aregex]) }}
-	  </div>
-	</fieldset>
+        <fieldset class="form-group card">
+          <legend class="card-header text-primary">Filtering</legend>
+          <div class="card-body">
+            {{ render_form_row([analysis_form.swords]) }}
+            {{ render_form_row([analysis_form.defaultswords]) }}
+            <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#stopModal">
+              View default stopwords
+            </button>
+            <br><br>
+            {{ render_form_row([analysis_form.fterms]) }}
+            {{ render_form_row([analysis_form.fcase, analysis_form.fregex]) }}
+            {% for field in analysis_form.level_select %}
+            {{ render_field(field) }}
+            {% endfor %}
+          </div>
+        </fieldset>
 
-	<fieldset class="form-group card">
-	  <legend class="card-header text-primary">Topic Modeling</legend>
-	  <div class="card-body">
-	  {{ render_field(analysis_form.n_clusters) }}
-	  </div>
-	</fieldset>
 
-	{{ render_field(analysis_form.submit) }}
+
+        <fieldset class="form-group card">
+          <legend class="card-header text-primary">Analysis Breakdown</legend>
+          <div class="card-body">
+            {{ render_form_row([analysis_form.aterms]) }}
+            {{ render_form_row([analysis_form.acase, analysis_form.aregex]) }}
+          </div>
+        </fieldset>
+
+        <fieldset class="form-group card">
+          <legend class="card-header text-primary">Topic Modeling</legend>
+          <div class="card-body">
+            {{ render_field(analysis_form.n_clusters) }}
+          </div>
+        </fieldset>
+
+        <input type="submit" value="Submit"/>
 
       </form>
 
     </div>
-
+   <!-- Jinja is still laid within this HTML. This is loading the results from a finished tag if shared.
+        TODO: Update results through JQuery regardless of the status of the job. Use an AJAX. --> 
     <div id="summary" role="tabpanel" aria-labelledby="summary-tab"
 	 class="tab-pane fade container {% if active_tab == 'summary' %}active show{% endif %}">
-	 
+
       <h3>Summary of all units matching filter.</h3>
 
       <p>Counts of articles by each level:
+	<div id="articles_summary"></div>
 
-	{{ results['articles_summary']|safe }}
+    {{ results['articles_summary']|safe }}
 
       </p>
 
       <p>Counts of units by each level:
-	
-	{{ results['chunks_summary']|safe }}
+	<div id="chunks_summary"></div>
+
+  {{ results['chunks_summary']|safe }}
+
 
       </p>
 
       <p>Most common words and two-word phrases:
-	
-      <figure class="figure text-center d-block">
-	{% set cap = "Word cloud for all filtered data." %}
-	<img src="data:image/png;base64,{{ results['wordcloud_all_img']|safe }}"
-	     class="figure-img img-fluid rounded"
-	     alt={{ cap }}>
-	<figcaption class="figure-caption">{{ cap }}</figcaption>
-      </figure>
+
+	<figure class="figure text-center d-block">
+          {% set cap = "Word cloud for all filtered data." %}
+          <img id="wordcloud_all_img" src="data:image/png;base64,{{ results['wordcloud_all_img']|safe }}" class="figure-img img-fluid rounded" alt={{ cap }}>
+          <figcaption class="figure-caption">{{ cap }}</figcaption>
+	</figure>
 
       </p>
 
       <p>Sentiment scores:
-	{{ results['chunks_sentiment_summary']|safe }}
+	<div id="chunks_sentiment_summary">
+    {{ results['chunks_sentiment_summary']|safe }}
+  </div>
       </p>
 
       <p>Scatter plot visualization (TfIdf + PCA):
-	<figure class="figure text-center d-block">
-	{{ results['scatter_all_2d']|safe }}
+	<figure class="figure text-center d-block" id="scatter_all_2d">
+    {{ results['scatter_all_2d']|safe }}
 	</figure>
-	<figure class="figure text-center d-block">
-	{{ results['scatter_all_3d']|safe }}
+	<figure class="figure text-center d-block" id="scatter_all_3d">
+    {{ results['scatter_all_3d']|safe }}
 	</figure>
       </p>
 
@@ -184,39 +193,44 @@
 
     <div id="analysis" role="tabpanel" aria-labelledby="analysis-tab"
 	 class="tab-pane fade container {% if active_tab == 'analysis' %}active show{% endif %}">
-	 
+
       <h3>Summary of all filtered units matching analysis terms.</h3>
 
       <p>Counts of units by each level
-	{{ results['matches_summary']|safe }}
+	<div id="matches_summary">
+    {{ results['matches_summary']|safe }}
+  </div>
       </p>
 
       <p>Most common words and two-word phrases:
-      <figure class="figure text-center d-block">
-	{% set cap = "Word cloud for data matching analysis terms." %}
-	<img src="data:image/png;base64,{{ results['wordcloud_analysis_img']|safe }}"
-	     class="figure-img img-fluid rounded"
-	     alt={{ cap }}>
-	<figcaption class="figure-caption">{{ cap }}</figcaption>
-      </figure>
+	<figure class="figure text-center d-block">
+          {% set cap = "Word cloud for data matching analysis terms." %}
+          <img id="wordcloud_analysis_img" src="data:image/png;base64,{{ results['wordcloud_analysis_img']|safe }}"
+          class="figure-img img-fluid rounded" alt={{ cap }}>
+          <figcaption class="figure-caption">{{ cap }}</figcaption>
+	</figure>
       </p>
 
       <p>Sentiment scores:
-	{{ results['matches_sentiment_summary']|safe }}
+	<div id="matches_sentiment_summary">
+    {{ results['matches_sentiment_summary']|safe }}
+  </div>
       </p>
 
       <p>Sentiment by level:
-	{{ results['matches_sentiment_breakdown']|safe }}
+	<div id="matches_sentiment_breakdown">
+    {{ results['matches_sentiment_breakdown']|safe }}
+  </div>
       </p>
 
       <!-- <p>Scatter plot visualization (TfIdf + PCA): -->
-      <!-- 	<figure class="figure text-center d-block"> -->
-      <!-- 	{{ results['scatter_matches_2d']|safe }} -->
-      <!-- 	</figure> -->
-      <!-- 	<figure class="figure text-center d-block"> -->
-      <!-- 	{{ results['scatter_matches_3d']|safe }} -->
-      <!-- 	</figure> -->
-      <!-- </p> -->
+	<!-- 	<figure class="figure text-center d-block"> -->
+	  <!-- 	 results['scatter_matches_2d']|safe }} -->
+	  <!-- 	</figure> -->
+	<!-- 	<figure class="figure text-center d-block"> -->
+	  <!-- 	 results['scatter_matches_3d']|safe }} -->
+	  <!-- 	</figure> -->
+	<!-- </p> -->
 
 
     </div>
@@ -224,6 +238,7 @@
     <div id="text" role="tabpanel" aria-labelledby="text-tab"
 	 class="tab-pane fade container {% if active_tab == 'text' %}active show{% endif %}">
       <h3>Text of all filtered units matching analysis terms.</h3>
+      <div id="puttexthere"></div>
 
       {{ results['analysis_table']|safe }}
 
@@ -232,68 +247,293 @@
     <div id="clusters" role="tabpanel" aria-labelledby="clusters-tab"
 	 class="tab-pane fade container {% if active_tab == 'clusters' %}active show{% endif %}">
       <h3>Clusters of all filtered units.</h3>
-      
+
       Clustering (Kmeans):
-	
+
       <div class="alert alert-warning" role="alert">
-	<h4 class="alert-heading">Caution</h4>
-	<p>Clusters are found in a 1000-dimensional space, which may
-	or may not correspond to the 2 or 3 dimensions used to plot
-	below. </p>
+        <h4 class="alert-heading">Caution</h4>
+        <p>Clusters are found in a 1000-dimensional space, which may
+          or may not correspond to the 2 or 3 dimensions used to plot
+          below. </p>
       </div>
 
+      <figure class="figure text-center d-block" id="cluster_2d">
+
+      </figure>
+
+      <figure class="figure text-center d-block" id="cluster_3d">
+
+      </figure>
+      <div id="allclusters">
+	<h4>Cluster information</h4>
+  {% if results %}
+
+  {% for cluster in results['cluster_info'] %}
+
+  <h5>Cluster {{ loop.index0 }}</h5>
+
+  <p><strong>"Most important" words</strong>: {{ '; '.join(cluster['keywords'])|safe }}</p>
+
+  <p>Most common words and two-word phrases:
+<figure class="figure text-center d-block">
+{% set cap = "Word cloud for this cluster." %}
+<img src="data:image/png;base64,{{ cluster['cloud']|safe }}"
+   class="figure-img img-fluid rounded"
+   alt={{ cap }}>
+<figcaption class="figure-caption">{{ cap }}</figcaption>
+  </figure>
+  </p>
+
+
+  <p>Representative chunks: </p>
+
+  <div class="rounded-lg" style="height: 300px; overflow-y: auto;">
+  <table class="table table-striped table-responsive">
+<thead class="thead-dark">
+<tr><th scope="col">#</th><th scope="col">Text</th></tr></thead>
+<tbody>
+{% for chunk in cluster['reps'] %}
+<tr>
+  <th scope="row">{{ loop.index }}</th>
+  <td>{{ chunk | replace("\n", "<br>") | safe }}</td>
+{% endfor %}
+</tbody>
+  </table>
+  </div>
+	<hr>
+{% endfor %}
+{% endif %}
+<!-- This script below is a jsrender/jsviews template. Allows us to loop through clusters easily. -->
+	<script id="clusterTemplate" type="text/x-jsrender">
+    <div>
+    <h5>Cluster [%:#index%]</h5>
+    <p><strong>"Most important" words</strong>: [%:keywords.join("; ")%] </p>
+
+    <p>Most common words and two-word phrases:
       <figure class="figure text-center d-block">
-	{{ results['cluster_2d']|safe }}
+        <img src="data:image/png;base64,[%:cloud%]"
+             class="figure-img img-fluid rounded"
+             alt= "Word cloud for this cluster">
+        <figcaption class="figure-caption">"Word cloud for this cluster"</figcaption>
       </figure>
-      <figure class="figure text-center d-block">
-	{{ results['cluster_3d']|safe }}
-      </figure>
+    </p>
 
-      <h4>Cluster information</h4>
+    <p>Representative chunks: </p>
 
-      <hr>
-      {% for cluster in results['cluster_info'] %}
-
-      <h5>Cluster {{ loop.index0 }}</h5>
-
-      <p><strong>"Most important" words</strong>: {{ '; '.join(cluster['keywords'])|safe }}</p>
-
-      <p>Most common words and two-word phrases:
-	<figure class="figure text-center d-block">
-	{% set cap = "Word cloud for this cluster." %}
-	<img src="data:image/png;base64,{{ cluster['cloud']|safe }}"
-	     class="figure-img img-fluid rounded"
-	     alt={{ cap }}>
-	<figcaption class="figure-caption">{{ cap }}</figcaption>
-      </figure>
-      </p>
-
-
-      <p>Representative chunks: </p>
-
-      <div class="rounded-lg" style="height: 300px; overflow-y: auto;">
+    <div class="rounded-lg" style="height: 300px; overflow-y: auto;">
       <table class="table table-striped table-responsive">
-	<thead class="thead-dark">
-	  <tr><th scope="col">#</th><th scope="col">Text</th></tr></thead>
-	<tbody>
-	  {% for chunk in cluster['reps'] %}
-	  <tr>
-	    <th scope="row">{{ loop.index }}</th>
-	    <td>{{ chunk | replace("\n", "<br>") | safe }}</td>
-	  {% endfor %}
-	</tbody>
+        <thead class="thead-dark">
+          <tr><th scope="col">#</th><th scope="col">Text</th></tr>
+        </thead>
+        <tbody>[%for reps itemVar='~chunk'%]
+          <tr>
+            <th scope="row">[%:#index+1%]</th>
+            <td>[%:~chunk.replace('\n', '<br>')%]</td>
+          </tr>
+        [%/for %]</tbody>
       </table>
+    </div>
+    <hr>
+    </div>
+	</script>
+
       </div>
 
-      <hr>
-      {% endfor %}
+      <script>
+	// Standard delimiters ('{{' and '}}') don't play well with Jinja.
+	$.views.settings.delimiters('[%','%]');
 
-    </div>
+	var skeleton = $.templates('#clusterTemplate');			
 
-  </div> <!-- container -->
+	$(document).ready(function () {
+            // We have to create the AJAX header to contain a CSRF Token, which makes it play nicely with WTForms
+            $.ajaxSetup({
+		beforeSend: function (xhr, settings) {
+		    if (!/^(GET|HEAD|OPTIONS|TRACE)$/i.test(settings.type) && !this.crossDomain) {
+			xhr.setRequestHeader("X-CSRFToken", "{{ csrf_token() }}");
+		    }
+		}
+            });
+            // Check if the room exists from URL, if so, assign it to this javascript variable.
+            var roomId = {% if room %}"{{ room|safe }}"{% else %}undefined{% endif %};
+            var dataset = '{{ dataset|safe }}';
+            var url = 'http://' + document.domain + ':' + location.port;
+            var socket = undefined; // io.connect(url);
+
+            function assert(cond, msg) { if (!cond) throw msg || "Assertion failed"; }
+
+            function getTimestamp() {
+		const now = new Date();
+		const year = now.getFullYear();
+		const month = (now.getMonth() + 1).toString().padStart(2, '0');
+		const day = now.getDate().toString().padStart(2, '0');
+		const h = now.getHours()
+		const m = now.getMinutes();
+		const s = now.getSeconds();
+		return `${year}/${month}/${day} ${h}:${m}:${s}`;
+            }
+            // Setup our socket connection, and joins the correct room.
+            function setupConnection(roomId) {
+		socket = io.connect(url);
+		socket.on('connect', () => {
+		    console.log(roomId);
+		    socket.emit('join_room', { 'roomid': roomId });
+		});
+		socket.on('connect_error', () => console.log("connect error!"));
+		socket.on('disconnect', (reason) => console.log(`Got disconnected: ${reason}`))
+		socket.on('taskprogress', (msg) => { // celery status
+		    console.log("Got task progress.");
+		    updateProgress(msg);
+		});
+    // This never gets hit, but I will keep as we may need in future.
+		socket.on('taskdone', (data) => {
+		    console.log(`Done: ${data}`);
+		    $('#output').text(data);
+
+		});
+		socket.on('status', (msg) => console.log(msg.status)); // server/socket status
+            }
+
+
+            {% if room %} // Need to join the room right away
+            console.log(`Joining in-progress task: ${roomId}`);
+	     		  $('#room').html(`<a href="${roomId}">${roomId}</a>`);
+            setupConnection(roomId);
+            changeTab();
+            
+            {% endif %}
+
+            $('#analysis_form').submit( (e) => {
+    // Start the exploring.
+		start_explore();
+    // Change the tab to summary.
+    changeTab();
+    // Tell the user that the results will come in automatically.
+    $('#loading').text('Please Wait... Results will load on page as they come in!');
+    // Empty the HTML from the results divs. This allows user to start another task without reloading.
+    emptyAll();
+		e.preventDefault();
+            });
+            // Hit flask endpoint and get formdata back while starting the process.
+            function start_explore() {
+		const tmp = $('#analysis_form').serializeArray();
+		let formdata = {};
+		$.map(tmp, (obj, i) => {
+		    key = obj['name']
+		    if (key in formdata) {// need to append to end
+			// If we don't already have an array, make it into one
+			if (!Array.isArray(formdata[key]))
+			    formdata[key] = [formdata[key]]
+			formdata[key].push(obj['value'])
+		    } else {
+			formdata[key] = obj['value'];
+		    }
+		});
+		data = {'dataset': dataset, 'formdata': formdata};
+
+		// send ajax POST request to start background job (exploring). Also assigns us a room and sets up connection.
+		$.ajax({
+                    type: 'POST',
+                    url: "{{ url_for('main.on_analysis_submit') }}",
+                    contentType: "application/json; charset=utf-8",
+                    dataType: "json",
+                    data: JSON.stringify(data),
+	     	    success: function(data, status, request) {
+	     		roomId = data.roomid;
+	     		console.log(`Server assigned us room: ${data.roomid}`);
+	     		$('#room').html(`<a href="${data.roomid}">${data.roomid}</a>`);
+	     		setupConnection(roomId);
+                    },
+                    error: function(data) {
+			console.log(`Unexpected error: ${data}`);
+                    }
+		    
+		});
+		
+
+		
+            }
+	});
+
+  // This function loops through the results that socket recieves and assigns them to the page (if its empty)
+	function updateProgress(data) {
+            if ('articles_summary' in data && ($('#articles_summary').html() == '') ) {
+		$('#articles_summary').html(data['articles_summary']);
+            }
+            if ('chunks_summary' in data && ($('#chunks_summary').html() == '') ) {
+		$('#chunks_summary').html(data['chunks_summary']);
+            }
+            if ('wordcloud_all_img' in data && ($('#wordcloud_all_img').attr('src') == '') ) {
+		wordcloud_all_img = String(data['wordcloud_all_img'])
+		$('#wordcloud_all_img').attr("src", ("data:image/png;base64, " + wordcloud_all_img));
+            }
+            if ('chunks_sentiment_summary' in data && ($('#chunks_sentiment_summary').html() == '') ) {
+		$('#chunks_sentiment_summary').html(data['chunks_sentiment_summary']);
+            }
+            if ('scatter_all_2d' in data && ($('#scatter_all_2d').html() == '') ) {
+		$('#scatter_all_2d').html(data['scatter_all_2d']);
+            }
+            if ('scatter_all_3d' in data && ($('#scatter_all_3d').html() == '') ) {
+		$('#scatter_all_3d').html(data['scatter_all_3d']);
+            }
+            if ('matches_summary' in data && ($('#matches_summary').html() == '') ) {
+		$('#matches_summary').html(data['matches_summary']);
+            }
+            if ('wordcloud_analysis_img' in data && ($('#wordcloud_analysis_img').attr('src') == '') ) {
+		wordcloud_analysis_img = String(data['wordcloud_analysis_img']);
+		$('#wordcloud_analysis_img').attr("src", ("data:image/png;base64, " + wordcloud_analysis_img));
+            }
+            if ('matches_sentiment_summary' in data && ($('#matches_sentiment_summary').html() == '') ) {
+		$('#matches_sentiment_summary').html(data['matches_sentiment_summary']);
+            }
+            if ('matches_sentiment_breakdown' in data && ($('#matches_sentiment_breakdown').html() == '') ) {
+		$('#matches_sentiment_breakdown').html(data['matches_sentiment_breakdown']);
+            }
+            if ('analysis_table' in data && ($('#puttexthere').html() == '') ) {
+		$('#puttexthere').html(data['analysis_table']);
+            }
+            if ('cluster_info' in data && ($('#cluster_info').html() == '') ) {
+		var clusters = data['cluster_info'];
+		var clusterhtml = skeleton.render(clusters);
+		$('#allclusters').html(clusterhtml);
+            }
+            if ('cluster_2d' in data && ($('#cluster_2d').html() == '') ) {
+		$('#cluster_2d').html(data['cluster_2d']);
+            }
+            if ('cluster_3d' in data && ($('#cluster_3d').html() == '') ) {
+		$('#cluster_3d').html(data['cluster_3d']);
+    $('#loading').text('');
+            }
+
+        }
   
-  {% endblock %}
+  // Changes the tab to summary. TODO: Allow more reusability by allowing any tab to be a argument.
+  function changeTab() {
+    $("#settings").attr("class", "tab-pane fade container");
+    $("#summary").attr("class", "tab-pane fade container active show");
+    $("#settingslink").attr("class", "nav-link");
+    $("#summarylink").attr("class", "nav-link active");
+  }
+  // Empty the divs that contain results.
+  function emptyAll() {
+    $('#articles_summary').empty();
+		$('#chunks_summary').empty();
+		$('#wordcloud_all_img').attr('src', '');
+		$('#chunks_sentiment_summary').empty();
+		$('#scatter_all_2d').empty();
+		$('#scatter_all_3d').empty();
+		$('#matches_summary').empty();
+		$('#wordcloud_analysis_img').attr('src', '');
+		$('#matches_sentiment_summary').empty();
+		$('#matches_sentiment_breakdown').empty();
+		$('#puttexthere').empty();
+		$('#allclusters').empty();
+		$('#cluster_2d').empty();
+		$('#cluster_3d').empty();
+  }
+  
+      </script>
 
+    </div> <!-- container -->
 
-
-
+    {% endblock %}
