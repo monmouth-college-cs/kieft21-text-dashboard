@@ -9,6 +9,7 @@ Faculty advisor: Robert Utterback
 python3 -m venv --prompt kieft env # or similar
 source env/bin/activate
 pip install -r requirements.txt
+./run-redis.sh
 ./start-celery.sh
 python3 run.py
 ```
