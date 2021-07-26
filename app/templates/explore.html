@@ -420,6 +420,7 @@
             $('#analysis_form').submit( (e) => {
 		start_explore();
     changeTab();
+    emptyAll();
 		e.preventDefault();
             });
 
@@ -464,50 +465,50 @@
 	});
 
 	function updateProgress(data) {
-            if ('articles_summary' in data) {
+            if ('articles_summary' in data && ($('#articles_summary').html() == '') ) {
 		$('#articles_summary').html(data['articles_summary']);
             }
-            if ('chunks_summary' in data) {
+            if ('chunks_summary' in data && ($('#chunks_summary').html() == '') ) {
 		$('#chunks_summary').html(data['chunks_summary']);
             }
-            if ('wordcloud_all_img' in data) {
+            if ('wordcloud_all_img' in data && ($('#wordcloud_all_img').attr('src') == '') ) {
 		wordcloud_all_img = String(data['wordcloud_all_img'])
 		$('#wordcloud_all_img').attr("src", ("data:image/png;base64, " + wordcloud_all_img));
             }
-            if ('chunks_sentiment_summary' in data) {
+            if ('chunks_sentiment_summary' in data && ($('#chunks_sentiment_summary').html() == '') ) {
 		$('#chunks_sentiment_summary').html(data['chunks_sentiment_summary']);
             }
-            if ('scatter_all_2d' in data) {
+            if ('scatter_all_2d' in data && ($('#scatter_all_2d').html() == '') ) {
 		$('#scatter_all_2d').html(data['scatter_all_2d']);
             }
-            if ('scatter_all_3d' in data) {
+            if ('scatter_all_3d' in data && ($('#scatter_all_3d').html() == '') ) {
 		$('#scatter_all_3d').html(data['scatter_all_3d']);
             }
-            if ('matches_summary' in data) {
+            if ('matches_summary' in data && ($('#matches_summary').html() == '') ) {
 		$('#matches_summary').html(data['matches_summary']);
             }
-            if ('wordcloud_analysis_img' in data) {
+            if ('wordcloud_analysis_img' in data && ($('#wordcloud_analysis_img').attr('src') == '') ) {
 		wordcloud_analysis_img = String(data['wordcloud_analysis_img']);
 		$('#wordcloud_analysis_img').attr("src", ("data:image/png;base64, " + wordcloud_analysis_img));
             }
-            if ('matches_sentiment_summary' in data) {
+            if ('matches_sentiment_summary' in data && ($('#matches_sentiment_summary').html() == '') ) {
 		$('#matches_sentiment_summary').html(data['matches_sentiment_summary']);
             }
-            if ('matches_sentiment_breakdown' in data) {
+            if ('matches_sentiment_breakdown' in data && ($('#matches_sentiment_breakdown').html() == '') ) {
 		$('#matches_sentiment_breakdown').html(data['matches_sentiment_breakdown']);
             }
-            if ('analysis_table' in data) {
+            if ('analysis_table' in data && ($('#puttexthere').html() == '') ) {
 		$('#puttexthere').html(data['analysis_table']);
             }
-            if ('cluster_info' in data) {
+            if ('cluster_info' in data && ($('#cluster_info').html() == '') ) {
 		var clusters = data['cluster_info'];
 		var clusterhtml = skeleton.render(clusters);
 		$('#allclusters').html(clusterhtml);
             }
-            if ('cluster_2d' in data) {
+            if ('cluster_2d' in data && ($('#cluster_2d').html() == '') ) {
 		$('#cluster_2d').html(data['cluster_2d']);
             }
-            if ('cluster_3d' in data) {
+            if ('cluster_3d' in data && ($('#cluster_3d').html() == '') ) {
 		$('#cluster_3d').html(data['cluster_3d']);
             }
 
@@ -518,6 +519,23 @@
     $("#summary").attr("class", "tab-pane fade container active show");
     $("#settingslink").attr("class", "nav-link");
     $("#summarylink").attr("class", "nav-link active");
+  }
+
+  function emptyAll() {
+    $('#articles_summary').empty();
+		$('#chunks_summary').empty();
+		$('#wordcloud_all_img').attr('src', '');
+		$('#chunks_sentiment_summary').empty();
+		$('#scatter_all_2d').empty();
+		$('#scatter_all_3d').empty();
+		$('#matches_summary').empty();
+		$('#wordcloud_analysis_img').attr('src', '');
+		$('#matches_sentiment_summary').empty();
+		$('#matches_sentiment_breakdown').empty();
+		$('#puttexthere').empty();
+		$('#allclusters').empty();
+		$('#cluster_2d').empty();
+		$('#cluster_3d').empty();
   }
   
       </script>
