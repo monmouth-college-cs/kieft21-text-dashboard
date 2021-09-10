@@ -16,4 +16,4 @@ python3 run.py
 
 To run a production server, first install Waitress (`pip install
 waitress`) (or the server of your choice). Then, instead of `python3
-run.py`, run `waitress-serve -call app:create_app'`.
+run.py`, run `waitress-serve --call 'app:create_app'`.
