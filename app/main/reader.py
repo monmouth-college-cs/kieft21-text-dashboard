@@ -275,6 +275,8 @@ def load_raw_articles(path, level_names, splitter, start, end):
     for filename in get_files(path):
         levels = parse_levels(filename, path)
         for aid, article in enumerate(load_file(filename, splitter, start, end)):
+            if article is None or article == '':
+                continue ## @TODO: I shouldn't have to do this. We should never yield empty articles.
             articles['Filename'].append(filename.relative_to(path))
             articles['Text'].append(article)
             articles['Article ID'].append(aid)
@@ -300,8 +302,10 @@ def load_wrangled(home, level_filters, uoa, fpattern):
     wrangledpath= '.wrangled.pkl'
     cache = os.path.join(home, wrangledpath)
     if os.path.exists(cache):
+        print("load from cache")
         all_articles = pd.read_pickle(cache)
     else:
+        print("load raw")
         all_articles = load_raw_articles(home, level_names, splitter, start, end)
 
     df = all_articles
@@ -310,6 +314,7 @@ def load_wrangled(home, level_filters, uoa, fpattern):
         df = df[df[lname].isin(filt) | df[lname].isna()]
 
     for _, row in df.iterrows():
+        assert row['Text'] is not None
         for chunk in get_chunks(row['Text'], uoa, fpattern):
             for col in df.columns:
                 chunks[col].append(row[col])
