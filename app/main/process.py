@@ -1,5 +1,6 @@
 import os, random, time
-import re, shlex, base64, io, json, uuid, nltk
+import re, shlex, base64, io, json, uuid, nltk, spacy
+from spacytextblob.spacytextblob import SpacyTextBlob
 from celery.app.registry import TaskRegistry
 from requests import post
 from zipfile import ZipFile
@@ -398,8 +399,14 @@ def explore(uid, path, level_names, form, uoa,
     chunks_df = chunks_df.reindex([*level_names, 'Filename', 'Article ID', 'Text'], axis=1)
 
     analyzer = SentimentIntensityAnalyzer()
+    nlp = spacy.load('en_core_web_lg')
+    nlp.remove_pipe("tok2vec")
+    nlp.add_pipe("spacytextblob")
     def score(row):
-        return analyzer.polarity_scores(row['Text'])['compound']
+        doc = nlp(row['Text'])
+        #print(doc._.assessments)
+        return doc._.polarity
+        #return analyzer.polarity_scores(row['Text'])['compound']
     chunks_df['Sentiment Score'] = chunks_df.apply(score, axis=1)
 
     matches_df = chunks_df.query('Text.str.contains(@apat)')
