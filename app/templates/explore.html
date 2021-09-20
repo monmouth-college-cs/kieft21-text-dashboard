@@ -223,6 +223,11 @@
   </div>
       </p>
 
+        <p>Subjectivity by level:
+    <div id="subjectivity_score_breakdown">
+      {{ results['subjectivity_breakdown']|safe}}
+    </div>
+        </p>
       <!-- <p>Scatter plot visualization (TfIdf + PCA): -->
 	<!-- 	<figure class="figure text-center d-block"> -->
 	  <!-- 	 results['scatter_matches_2d']|safe }} -->
@@ -488,6 +493,9 @@
             }
             if ('matches_sentiment_breakdown' in data && ($('#matches_sentiment_breakdown').html() == '') ) {
 		$('#matches_sentiment_breakdown').html(data['matches_sentiment_breakdown']);
+            }
+            if ('subjectivity_breakdown' in data && ($('#subjectivity_breakdown').html() == '') ) {
+    $('#subjectivity_breakdown').html(data['subjectivity_breakdown']);
             }
             if ('analysis_table' in data && ($('#puttexthere').html() == '') ) {
 		$('#puttexthere').html(data['analysis_table']);

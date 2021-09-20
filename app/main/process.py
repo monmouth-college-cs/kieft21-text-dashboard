@@ -255,12 +255,28 @@ def build_results(articles, chunks, matches, levnames, unit,
                 summarize_by_level(this, levnames, title=term,
                                    histfunc='avg', z='Sentiment Score')
         by_level_text.append(bylev)
-
+    
     res['matches_sentiment_summary'] = make_table(sent)
     socketio.emit('taskprogress', res, to=uid)
     res['matches_sentiment_breakdown'] = '\n<br>\n'.join(by_level_text)
     socketio.emit('taskprogress', res, to=uid)
 
+
+    subj = matches[['Sentiment Score']].describe()
+    subj.rename(columns={'Sentiment Score': 'All terms'}, inplace=True)
+    by_level_text2 = ['<br><br>\n']
+    for term, regex in analysis_regexes.items():
+        this = matches.query('Text.str.contains(@regex)')
+        subj[term] = this['Subjectivity Score'].describe()
+
+        bylev2 = f"{term}: No matches!" if len(this) == 0 else \
+                summarize_by_level(this, levnames, title=term,
+                                   histfunc='avg', z='Subjectivity Score')
+        by_level_text2.append(bylev2)
+
+    res['subjectivity_breakdown'] = '\n<br>\n'.join(by_level_text2)
+    socketio.emit('taskprogress', res, to=uid)
+    
     # cluster
     # @TODO: Also cluster by each analysis term?
     # @OTOD: Also cluster separately for each level?
@@ -404,9 +420,11 @@ def explore(uid, path, level_names, form, uoa,
     nlp.add_pipe("spacytextblob")
     def score(row):
         return analyzer.polarity_scores(row['Text'])['compound']
+
     def subjectivity_score(row):
         doc = nlp(row['Text'])
         return doc._.subjectivity
+
     chunks_df['Sentiment Score'] = chunks_df.apply(score, axis=1)
     chunks_df['Subjectivity Score'] = chunks_df.apply(subjectivity_score, axis=1)
 
