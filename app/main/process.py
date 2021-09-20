@@ -403,11 +403,12 @@ def explore(uid, path, level_names, form, uoa,
     nlp.remove_pipe("tok2vec")
     nlp.add_pipe("spacytextblob")
     def score(row):
+        return analyzer.polarity_scores(row['Text'])['compound']
+    def subjectivity_score(row):
         doc = nlp(row['Text'])
-        #print(doc._.assessments)
-        return doc._.polarity
-        #return analyzer.polarity_scores(row['Text'])['compound']
+        return doc._.subjectivity
     chunks_df['Sentiment Score'] = chunks_df.apply(score, axis=1)
+    chunks_df['Subjectivity Score'] = chunks_df.apply(subjectivity_score, axis=1)
 
     matches_df = chunks_df.query('Text.str.contains(@apat)')
 
