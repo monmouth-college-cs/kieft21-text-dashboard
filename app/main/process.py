@@ -262,8 +262,8 @@ def build_results(articles, chunks, matches, levnames, unit,
     socketio.emit('taskprogress', res, to=uid)
 
 
-    subj = matches[['Sentiment Score']].describe()
-    subj.rename(columns={'Sentiment Score': 'All terms'}, inplace=True)
+    subj = matches[['Subjectivity Score']].describe()
+    subj.rename(columns={'Subjectivity Score': 'All terms'}, inplace=True)
     by_level_text2 = ['<br><br>\n']
     for term, regex in analysis_regexes.items():
         this = matches.query('Text.str.contains(@regex)')
@@ -274,9 +274,11 @@ def build_results(articles, chunks, matches, levnames, unit,
                                    histfunc='avg', z='Subjectivity Score')
         by_level_text2.append(bylev2)
 
-    res['subjectivity_breakdown'] = '\n<br>\n'.join(by_level_text2)
-    socketio.emit('taskprogress', res, to=uid)
     
+    res['subjectivity_breakdown'] = '\n<br>\n'.join(by_level_text2)
+    print(res['subjectivity_breakdown'])
+    socketio.emit('taskprogress', res, to=uid)
+
     # cluster
     # @TODO: Also cluster by each analysis term?
     # @OTOD: Also cluster separately for each level?
