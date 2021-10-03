@@ -26,6 +26,7 @@ from sklearn.cluster import KMeans
 from app import celery, socketio
 from .reader import load_raw_articles, load_wrangled
 from .util import is_supported_filename
+from .spacyNLTK import SpacyVader
 
 detector = UniversalDetector()
 def guess_encoding(of):
@@ -416,18 +417,20 @@ def explore(uid, path, level_names, form, uoa,
 
     chunks_df = chunks_df.reindex([*level_names, 'Filename', 'Article ID', 'Text'], axis=1)
 
-    analyzer = SentimentIntensityAnalyzer()
+
     nlp = spacy.load('en_core_web_lg')
-    nlp.remove_pipe("tok2vec")
     nlp.add_pipe("spacytextblob")
-    def score(row):
-        return analyzer.polarity_scores(row['Text'])['compound']
+    nlp.add_pipe("spacyVader")
+
+    def polarity_score(row):
+        doc = nlp(row['Text'])
+        return doc._.polarity
 
     def subjectivity_score(row):
         doc = nlp(row['Text'])
         return doc._.subjectivity
 
-    chunks_df['Sentiment Score'] = chunks_df.apply(score, axis=1)
+    chunks_df['Sentiment Score'] = chunks_df.apply(polarity_score, axis=1)
     chunks_df['Subjectivity Score'] = chunks_df.apply(subjectivity_score, axis=1)
 
     matches_df = chunks_df.query('Text.str.contains(@apat)')
