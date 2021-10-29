@@ -422,16 +422,22 @@ def explore(uid, path, level_names, form, uoa,
     nlp.add_pipe("spacytextblob")
     nlp.add_pipe("spacyVader")
 
-    def polarity_score(row):
-        doc = nlp(row['Text'])
-        return doc._.polarity
+    def runPipeline():
+            
 
-    def subjectivity_score(row):
-        doc = nlp(row['Text'])
-        return doc._.subjectivity
+    chunks_df = runPipeline(chunks_df)
+            
 
-    chunks_df['Sentiment Score'] = chunks_df.apply(polarity_score, axis=1)
-    chunks_df['Subjectivity Score'] = chunks_df.apply(subjectivity_score, axis=1)
+    #def polarity_score(row):
+        #doc = nlp(row['Text'])
+        #return doc._.polarity
+
+    #def subjectivity_score(row):
+        #doc = nlp(row['Text'])
+        #return doc._.subjectivity
+
+    #chunks_df['Sentiment Score'] = chunks_df.apply(polarity_score, axis=1)
+   # chunks_df['Subjectivity Score'] = chunks_df.apply(subjectivity_score, axis=1)
 
     matches_df = chunks_df.query('Text.str.contains(@apat)')
 
